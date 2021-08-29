@@ -62,7 +62,7 @@ async def configure(ctx, *, arg):
 @bot.command(pass_contect=True)
 async def help(ctx):
     embed = discord.Embed(title="Help",
-                          url="https://github.com/DanielPikilidis",
+                          url="https://github.com/DanielPikilidis/DIT-Announcements",
                           description="All the commands the bot supports are listed here.",
                           color=discord.Color.blue()
                           )
@@ -129,7 +129,7 @@ async def get_announcements():
                 embed.set_footer(text=date)
                 channels = data.get_announcement_channels()
                 for ch in channels:
-                    current = bot.get_channel(ch)
+                    current = bot.get_channel(int(ch))
                     await current.send(embed=embed)
             old = new
         await asyncio.sleep(30)
