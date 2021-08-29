@@ -1,7 +1,8 @@
 # DIT-Announcements
 Sends new announcements from https://www.di.uoa.gr/announcements to discord. 
 <br>
-Invite link: https://discord.com/api/oauth2/authorize?client_id=881568952378073149&permissions=34359855120&scope=bot
+Invite link: https://discord.com/api/oauth2/authorize?client_id=881568952378073149&permissions=19472&scope=bot
+<br>
 
 ## Installation
 1) Install os library (pip3 install os)
