@@ -11,5 +11,5 @@ os.system("touch config.txt")
 import json
 
 with open("guilds.json", "a+") as f:
-    a = {}
+    a = {"announcements": {}}
     json.dump(a, f, indent=4)
