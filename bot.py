@@ -68,8 +68,12 @@ async def on_message(message):
 ################# BOT COMMANDS #################
 
 @bot.command(pass_context=True)
-async def config(ctx, *, arg):
+async def config(ctx, *, arg="default"):
     global data
+
+    if arg == "default":
+        await ctx.channel.send("Missing arguments, type ./config help to see available commands.")
+        return
 
     if ctx.message.author != ctx.guild.owner:
         author_roles = ctx.author.roles
@@ -107,6 +111,9 @@ async def config(ctx, *, arg):
 
         await ctx.channel.send(embed=embed)
     elif arg[0].upper() == "ANNOUNCEMENTS":
+        if len(arg) < 2:
+            await ctx.channel.send("Invalid Arguments.")
+            return
         ret = data.configure_announcements_channel(str(ctx.guild.id), str(arg[1][2:-1]))
         if ret:
             print(f"Changed announcements channel for guild ({ctx.guild.id})")
@@ -114,6 +121,14 @@ async def config(ctx, *, arg):
         else:
             print(f"Failed to configure announcements channel for guild ({ctx.guild.id})")
     elif arg[0].upper() == "PERMISSIONS":
+        if len(arg) < 3:
+            await ctx.channel.send("Invalid Arguments.")
+            return
+        
+        if arg[1].upper() != "ADD" and arg[1].upper() != "REMOVE":
+            await ctx.channel.send("Unknown argument for ./config permissions. See ./config help")
+            return
+
         try:
             role = ctx.guild.get_role(int(arg[2][3:-1]))
         except:
@@ -162,7 +177,8 @@ async def config(ctx, *, arg):
             else:
                 s += i.name
         await ctx.channel.send(s)
-
+    else:
+        await ctx.channel.send("Unknown parameter for config. See ./config help")
 
 @bot.command(pass_contect=True)
 async def help(ctx):
@@ -351,9 +367,11 @@ async def get_announcements():
                                       title="New Announcement!", 
                                       url=link,
                                       description=title,
-                                      color=discord.Color.blue())
+                                      color=discord.Color.blue()
+                                     )
+                #embed.set_author(name="Created by 0x64616e69656c#1234", url="https://github.com/DanielPikilidis/DIT-Announcements", icon_url="https://avatars.githubusercontent.com/u/50553687?s=400&v=4")
                 embed.set_thumbnail(url="https://pbs.twimg.com/profile_images/1255901921896009729/xKsBUtgN.jpg")
-                embed.set_footer(text=date)
+                embed.set_footer(text=f"{date}\nCreated by github.com/DanielPikilidis")
                 channels = data.get_announcement_channels()
                 for ch in channels:
                     current = bot.get_channel(int(ch))
