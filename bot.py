@@ -47,18 +47,18 @@ async def on_guild_join(guild):
 
     ret = data.add_guild(str(guild.id), str(channel.id))
     if ret:
-        print(f"Guild ({guild.id}) added to json file.")
+        print(f"Guild {guild.id}: Added to json file.")
     else:
-        print(f"Guild ({guild.id}) addition to json file failed.")
+        print(f"Guild {guild.id}: Failed to add to json file")
 
 @bot.event
 async def on_guild_remove(guild):
     global data
     ret = data.remove_guild(str(guild.id))
     if ret:
-        print(f"Guild ({guild.id}) removed from json file.")
+        print(f"Guild {guild.id}: Removed from json file.")
     else:
-        print(f"Guild ({guild.id}) removal from json file failed.")
+        print(f"Guild {guild.id}: Failed to remove from json file.")
 
 @bot.event
 async def on_message(message):
@@ -116,10 +116,10 @@ async def config(ctx, *, arg="default"):
             return
         ret = data.configure_announcements_channel(str(ctx.guild.id), str(arg[1][2:-1]))
         if ret:
-            print(f"Changed announcements channel for guild ({ctx.guild.id})")
+            print(f"Guild {ctx.guild.id}: Changed announcements channel")
             await ctx.channel.send("Channel for announcements changed.")
         else:
-            print(f"Failed to configure announcements channel for guild ({ctx.guild.id})")
+            print(f"Guild {ctx.guild.id}: Failed to change announcements channel.")
     elif arg[0].upper() == "PERMISSIONS":
         if len(arg) < 3:
             await ctx.channel.send("Invalid Arguments.")
@@ -137,45 +137,37 @@ async def config(ctx, *, arg="default"):
         if arg[1].upper() == "ADD":
             ret = data.add_control(str(ctx.guild.id), role)
             if ret:
-                print(f"Added role ({role}) to control list.")
-                await ctx.channel.send(f"Successfully added role ({role}) to the control list.")
+                print(f"Guild {ctx.guild.id}: Added Role {role.id} to control list.")
+                await ctx.channel.send(f"Successfully added role {role} to the control list.")
             else:
-                print(f"Failed to add role ({role}) to control list.")
-                await ctx.channel.send(f"That role ({role}) is already in the control list.")
+                print(f"Guild {ctx.guild.id}: Failed to add Role {role.id} to control list.")
+                await ctx.channel.send(f"That role {role} is already in the control list.")
         elif arg[1].upper() == "REMOVE":
             ret = data.remove_control(str(ctx.guild.id), role)
             ret2 = data.get_control_list(str(ctx.guild.id))
             if ret:
-                print(f"Removed role ({role}) from control list.")
+                print(f"Guild {ctx.guild.id}: Removed role Role from control list.")
                 if len(ret2):
-                    await ctx.channel.send(f"Successfully removed role ({role}) from the control list.")
+                    await ctx.channel.send(f"Successfully removed role {role} from the control list.")
                 else:
-                    await ctx.channel.send(f"Successfully removed role ({role}) from the control list.\n"
+                    await ctx.channel.send(f"Successfully removed role {role} from the control list.\n"
                                             "There are no more roles left in the control list. Now everyone "
-                                            "can control the bot!!")
+                                            "can control the bot!")
             else:
-                print(f"Failed to remove role ({role}) from control list.")
+                print(f"Guild {ctx.guild.id}: Failed to remove Role {role} from control list.")
                 await ctx.channel.send("That role isn't in the control list.")
     elif arg[0].upper() == "CONTROL_LIST":
         control_list = data.get_control_list(str(ctx.guild.id))
         for i in range(len(control_list)):
-            if control_list[i] != "everyone":
-                control_list[i] = ctx.guild.get_role(int(control_list[i]))
+            control_list[i] = ctx.guild.get_role(int(control_list[i]))
             
         if not len(control_list):
             await ctx.channel.send("Everyone is allowed to control the bot.")
             return
-        s = ""
-        if control_list[0] == "everyone":
-            s += control_list[0]
-        else:
-            s += control_list[0].name
+        s = control_list[0].name        
         for i in control_list[1:]:
             s += ", "
-            if i == "everyone":
-                s += i
-            else:
-                s += i.name
+            s += i.name
         await ctx.channel.send(s)
     else:
         await ctx.channel.send("Unknown parameter for config. See ./config help")
@@ -249,7 +241,6 @@ class GuildData:
 
     def remove_control(self, guild, role):
         try:
-            print(self.data[guild]["control"])
             self.data[guild]["control"].remove(str(role.id))
         except:
             return 0
@@ -330,9 +321,9 @@ async def check_guilds():
             await channel.send("You can move this channel to any category you want. If you delete it, you will have to reconfigure the bot with ./config")
             ret = data.add_guild(str(guild.id), str(channel.id))
             if ret:
-                print(f"Guild ({guild.id}) added to json file.")
+                print(f"Guild {guild.id}: Added to json file.")
             else:
-                print(f"Guild ({guild.id}) addition to json file failed.")
+                print(f"Guild {guild.id}: Failed to add to json file.")
 
     with open("guilds.json", "r") as f:
         cur_data = json.loads(f.read())
@@ -346,9 +337,9 @@ async def check_guilds():
         if i not in joined:
             ret = data.remove(str(guild.id))
             if ret:
-                print(f"Guild ({guild.id}) removed from json file.")
+                print(f"Guild {guild.id}: Removed from json file.")
             else:
-                print(f"Guild ({guild.id}) removal from json file failed.")
+                print(f"Guild {guild.id}: Failed to remove from json file.")
 
 
 ################# ALWAYS RUNNING FUNCTIONS #################
@@ -358,11 +349,11 @@ async def get_announcements():
     while True:
         new, announcements = check_for_new(old)
         if announcements:
-            print("Found new announcements, sending.")
+            date = datetime.datetime.now().strftime("%A, %d/%m/%Y, %H:%M")
+            print(f"Found new announcements, sending. {date}")
             for i in announcements:
                 link = i["link"]
                 title = i["title"]
-                date = datetime.datetime.now().strftime("%A, %d/%m/%Y, %H:%M")
                 embed = discord.Embed(
                                       title="New Announcement!", 
                                       url=link,
