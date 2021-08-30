@@ -32,7 +32,7 @@ def get_an_list():
             temp = ' '.join(temp.split())   # Removing spaces and tabs
             categories.append(temp)
 
-        current = {"link": link, "title": title, "categories": categories}
+        current = {"link": link, "title": title, "tags": categories}
         announcements.append(current)
 
     return announcements

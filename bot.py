@@ -1,5 +1,6 @@
-import discord, json, asyncio, datetime
+import discord, json, asyncio, datetime, logging, sys, time
 from discord.ext import commands
+from logging.handlers import TimedRotatingFileHandler
 from announcements import *
 
 f = open("config.txt", "r")
@@ -15,24 +16,36 @@ bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
 
 data = None
 
+logname = "logs/output.log"
+handler = TimedRotatingFileHandler(logname, when="midnight", interval=1, backupCount=1)
+handler.suffix = "%Y%m%d"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        handler,
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 ################# BOT EVENTS #################
 
 @bot.event
 async def on_ready():
     global data
-    print("Bot Ready")
     data = GuildData()
     ret = await check_guilds()
     if ret:
-        print("Guild check successful")
+        logging.info("Guild check successful.")
     else:
         with open("guilds.json", "a+") as f:
             json.dump({}, f, indent=4)
 
-        print("Recreating guilds.json. If the bot is in any guild, restart the bot.")
+        logging.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
 
     bot.loop.create_task(get_announcements())
+    logging.info("Bot logged in and ready")
 
 @bot.event
 async def on_guild_join(guild):
@@ -47,17 +60,19 @@ async def on_guild_join(guild):
 
     ret = data.add_guild(str(guild.id), str(channel.id))
     if ret:
-        print(f"Guild {guild.id}: Added to json file.")
+        logging.info(f"Guild {guild.id}: Added to json file.")
     else:
-        print(f"Guild {guild.id}: Failed to add to json file")
+        logging.warning(f"Guild {guild.id}: Failed to add to json file")
 
 @bot.event
 async def on_guild_remove(guild):
     global data
     ret = data.remove_guild(str(guild.id))
     if ret:
+        logging.info()
         print(f"Guild {guild.id}: Removed from json file.")
     else:
+        logging.warning()
         print(f"Guild {guild.id}: Failed to remove from json file.")
 
 @bot.event
@@ -135,10 +150,10 @@ async def config(ctx, *, arg="default"):
 
         ret = data.configure_announcements_channel(str(ctx.guild.id), str(channel.id))
         if ret:
-            print(f"Guild {ctx.guild.id}: Changed announcements channel")
+            logging.info(f"Guild {ctx.guild.id}: Changed announcements channel")
             await ctx.channel.send("Channel for announcements changed.")
         else:
-            print(f"Guild {ctx.guild.id}: Failed to change announcements channel.")
+            logging.warning(f"Guild {ctx.guild.id}: Failed to change announcements channel.")
     elif arg[0].upper() == "PERMISSIONS":
         if len(arg) < 3:
             await ctx.channel.send("Invalid Arguments.")
@@ -156,16 +171,16 @@ async def config(ctx, *, arg="default"):
         if arg[1].upper() == "ADD":
             ret = data.add_control(str(ctx.guild.id), role)
             if ret:
-                print(f"Guild {ctx.guild.id}: Added Role {role.id} to control list.")
+                logging.info(f"Guild {ctx.guild.id}: Added Role {role.id} to control list.")
                 await ctx.channel.send(f"Successfully added role {role} to the control list.")
             else:
-                print(f"Guild {ctx.guild.id}: Failed to add Role {role.id} to control list.")
+                logging.info(f"Guild {ctx.guild.id}: Role {role.id} already in control list.")
                 await ctx.channel.send(f"That role {role} is already in the control list.")
         elif arg[1].upper() == "REMOVE":
             ret = data.remove_control(str(ctx.guild.id), role)
             ret2 = data.get_control_list(str(ctx.guild.id))
             if ret:
-                print(f"Guild {ctx.guild.id}: Removed role Role from control list.")
+                logging.info(f"Guild {ctx.guild.id}: Removed role Role from control list.")
                 if len(ret2):
                     await ctx.channel.send(f"Successfully removed role {role} from the control list.")
                 else:
@@ -173,7 +188,7 @@ async def config(ctx, *, arg="default"):
                                             "There are no more roles left in the control list. Now everyone "
                                             "can control the bot!")
             else:
-                print(f"Guild {ctx.guild.id}: Failed to remove Role {role} from control list.")
+                logging.warning(f"Guild {ctx.guild.id}: Failed to remove Role {role} from control list.")
                 await ctx.channel.send("That role isn't in the control list.")
     elif arg[0].upper() == "CONTROL_LIST":
         control_list = data.get_control_list(str(ctx.guild.id))
@@ -232,6 +247,7 @@ class GuildData:
             self.backup = self.data.copy()
             return 1
         except:
+            logging.error("Failed to make changes to json file. Reverting to old.")
             self.data = self.backup.copy()
             with open("guilds.json", "w") as f:     
                 json.dump(self.data, f, indent=4)
@@ -253,6 +269,7 @@ class GuildData:
             self.backup = self.data.copy()
             return 1
         except:
+            logging.error("Failed to make changes to json file. Reverting to old.")
             self.data = self.backup.copy()
             with open("guilds.json", "w") as f:     
                 json.dump(self.data, f, indent=4)
@@ -270,6 +287,7 @@ class GuildData:
             self.backup = self.data.copy()
             return 1
         except:
+            logging.error("Failed to make changes to json file. Reverting to old.")
             self.data = self.backup.copy()
             with open("guilds.json", "w") as f:     
                 json.dump(self.data, f, indent=4)
@@ -290,6 +308,7 @@ class GuildData:
             self.backup = self.data.copy()
             return 1
         except:
+            logging.error("Failed to make changes to json file. Reverting to old.")
             self.data = self.backup.copy()
             with open("guilds.json", "w") as f:     
                 json.dump(self.data, f, indent=4)
@@ -304,6 +323,7 @@ class GuildData:
             self.backup = self.data.copy()
             return 1
         except:
+            logging.error("Failed to make changes to json file. Reverting to old.")
             self.data = self.backup.copy()
             with open("guilds.json", "w") as f:     
                 json.dump(self.data, f, indent=4)
@@ -319,7 +339,7 @@ async def check_guilds():
         with open("guilds.json", "r") as f:
             cur_data = json.loads(f.read())
     except IOError:
-        print("guilds.json doesn't exist...")
+        logging.critical("guilds.json doesn't exist.")
         return 0
 
     stored = list(cur_data.keys())
@@ -340,9 +360,9 @@ async def check_guilds():
             await channel.send("You can move this channel to any category you want. If you delete it, you will have to reconfigure the bot with ./config")
             ret = data.add_guild(str(guild.id), str(channel.id))
             if ret:
-                print(f"Guild {guild.id}: Added to json file.")
+                logging.info(f"Guild {guild.id}: Added to json file.")
             else:
-                print(f"Guild {guild.id}: Failed to add to json file.")
+                logging.warning(f"Guild {guild.id}: Failed to add to json file.")
 
     with open("guilds.json", "r") as f:
         cur_data = json.loads(f.read())
@@ -356,20 +376,22 @@ async def check_guilds():
         if i not in joined:
             ret = data.remove(str(guild.id))
             if ret:
-                print(f"Guild {guild.id}: Removed from json file.")
+                logging.info(f"Guild {guild.id}: Added to json file.")
             else:
-                print(f"Guild {guild.id}: Failed to remove from json file.")
+                logging.warning(f"Guild {guild.id}: Failed to add to json file.")
 
 
 ################# ALWAYS RUNNING FUNCTIONS #################
 
 async def get_announcements():
-    old = get_an_list()
+    old_list = get_an_list()
     while True:
-        new, announcements = check_for_new(old)
+        new_list, announcements = check_for_new(old_list)
+        # announcements also has tags for every new announcement. I haven't used them anywhere yet.
         if announcements:
             date = datetime.datetime.now().strftime("%A, %d/%m/%Y, %H:%M")
-            print(f"Found new announcements, sending. {date}")
+            logging.info("Found new announcements, sending.")
+            start = time.time()
             for i in announcements:
                 link = i["link"]
                 title = i["title"]
@@ -386,7 +408,11 @@ async def get_announcements():
                 for ch in channels:
                     current = bot.get_channel(int(ch))
                     await current.send(embed=embed)
-            old = new
+            old_list = new_list
+            end = time.time()
+            total = end - start
+            total_formatted = str(datetime.timedelta(seconds=int(total)))
+            logging.info(f"Successfully sent new announcements to all servers. Total time: {total_formatted}")
         await asyncio.sleep(30)
 
 if __name__ == "__main__":
