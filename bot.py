@@ -114,7 +114,26 @@ async def config(ctx, *, arg="default"):
         if len(arg) < 2:
             await ctx.channel.send("Invalid Arguments.")
             return
-        ret = data.configure_announcements_channel(str(ctx.guild.id), str(arg[1][2:-1]))
+
+        channel = str(arg[1][2:-1])
+        guild_channels = ctx.guild.text_channels
+        try:
+            channel = bot.get_channel(int(channel))
+        except:
+            await ctx.channel.send("Invalid channel.")
+            return
+
+        valid_channel = False
+        for i in guild_channels:
+            if channel.id == i.id:
+                valid_channel = True
+                break
+        
+        if not valid_channel:
+            await ctx.channel.send("Invalid channel.")
+            return
+
+        ret = data.configure_announcements_channel(str(ctx.guild.id), str(channel.id))
         if ret:
             print(f"Guild {ctx.guild.id}: Changed announcements channel")
             await ctx.channel.send("Channel for announcements changed.")
