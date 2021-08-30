@@ -38,12 +38,12 @@ async def on_ready():
 async def on_guild_join(guild):
     global data
     channel = await guild.create_text_channel("announcements")
-    await channel.send("You can move this channel to any category you want. If you delete it, you will have to\n "
+    await channel.send("You can move this channel to any category you want. If you delete it, you will have to"
                        "reconfigure the bot with ./config.\n"
                        "By default everyone can config the bot. You should probably change that.\n"
                        "The server owner can always control the bot. Even if he's not in a control role.\n"
-                       "If you are not the owner, first add your own role to the control list, and then remove [@]everyone\n"
-                       "\"./config help\" to see how to add / remove roles.")
+                       "If the control list is empty, everyone can control the bot, so you have to keep at least"
+                       "one role in it")
 
     ret = data.add_guild(str(guild.id), str(channel.id))
     if ret:
@@ -75,16 +75,16 @@ async def config(ctx, *, arg):
         author_roles = ctx.author.roles
         control_list = data.get_control_list(str(ctx.guild.id))
 
-        has_permissions = False
-        for i in author_roles:
-            if i.name == "@everyone":
-                cur = i.name
-            else:
+        if not len(control_list):
+            has_permissions = True
+        else:
+            has_permissions = False
+            for i in author_roles:
                 cur = str(i.id)
-            
-            if cur in control_list:
-                has_permissions = True
-                break
+                
+                if cur in control_list:
+                    has_permissions = True
+                    break
             
         if not has_permissions:
             await ctx.channel.send("You don't have permission to configure the bot.")
@@ -101,8 +101,7 @@ async def config(ctx, *, arg):
                         value="Change to which channel the bot sends the new announcements.", inline=False)
         embed.add_field(name="./config permissions add/remove @role_name.", 
                         value="Add / Remove roles that will be allowed to configure the bot."
-                              "If you want to add / remove [@]everyone, don't tag them, just type \"everyone\"."
-                              "You will have to tag every other role though.", inline=False)
+                              "You have to tag the role to add it.", inline=False)
         embed.add_field(name="./config control_list.",
                         value="Get a list with all the roles that are allowed to configure the bot.", inline=False)
 
@@ -111,27 +110,34 @@ async def config(ctx, *, arg):
         ret = data.configure_announcements_channel(str(ctx.guild.id), str(arg[1][2:-1]))
         if ret:
             print(f"Changed announcements channel for guild ({ctx.guild.id})")
-            await ctx.channel.send("Successfully change announcement channel.")
+            await ctx.channel.send("Channel for announcements changed.")
         else:
             print(f"Failed to configure announcements channel for guild ({ctx.guild.id})")
     elif arg[0].upper() == "PERMISSIONS":
-        if arg[2].upper() == "EVERYONE":
-            role = "everyone"
-        else:
-            role = str(arg[2][3:-1])
+        try:
+            role = ctx.guild.get_role(int(arg[2][3:-1]))
+        except:
+            await ctx.channel.send("That role doesn't exist.")
+            return
         if arg[1].upper() == "ADD":
             ret = data.add_control(str(ctx.guild.id), role)
             if ret:
                 print(f"Added role ({role}) to control list.")
-                await ctx.channel.send("Successfully added role to the control list.")
+                await ctx.channel.send(f"Successfully added role ({role}) to the control list.")
             else:
                 print(f"Failed to add role ({role}) to control list.")
-                await ctx.channel.send("That role is already in the control list.")
+                await ctx.channel.send(f"That role ({role}) is already in the control list.")
         elif arg[1].upper() == "REMOVE":
             ret = data.remove_control(str(ctx.guild.id), role)
+            ret2 = data.get_control_list(str(ctx.guild.id))
             if ret:
                 print(f"Removed role ({role}) from control list.")
-                await ctx.channel.send("Successfully removed role from the control list.")
+                if len(ret2):
+                    await ctx.channel.send(f"Successfully removed role ({role}) from the control list.")
+                else:
+                    await ctx.channel.send(f"Successfully removed role ({role}) from the control list.\n"
+                                            "There are no more roles left in the control list. Now everyone "
+                                            "can control the bot!!")
             else:
                 print(f"Failed to remove role ({role}) from control list.")
                 await ctx.channel.send("That role isn't in the control list.")
@@ -141,6 +147,9 @@ async def config(ctx, *, arg):
             if control_list[i] != "everyone":
                 control_list[i] = ctx.guild.get_role(int(control_list[i]))
             
+        if not len(control_list):
+            await ctx.channel.send("Everyone is allowed to control the bot.")
+            return
         s = ""
         if control_list[0] == "everyone":
             s += control_list[0]
@@ -176,62 +185,103 @@ class GuildData:
         try:
             with open("guilds.json", "r") as f:
                 self.data = json.loads(f.read())
+                self.backup = self.data.copy()
         except IOError:
             return None
 
     def get_announcement_channels(self):
-        arr = []
-        for guild in self.data:
-            arr.append(guild["announcements"])
+        arr = list(self.data.values())
+        for i in range(len(arr)):
+            arr[i] = arr[i]["announcements"]
+
         return arr
 
     def configure_announcements_channel(self, guild, channel):
         self.data[guild]["announcements"] = channel
 
-        with open("guilds.json", "w") as f:     
-            json.dump(self.data, f, indent=4)
-        return 1
+        try:
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            self.backup = self.data.copy()
+            return 1
+        except:
+            self.data = self.backup.copy()
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            return 0
 
     def add_control(self, guild, role):
         try:
-            self.data[guild]["control"].remove(role)
+            self.data[guild]["control"].remove(str(role.id))
+            self.data[guild]["control"].append(str(role.id))
             return 0
         except:
             pass
 
-        self.data[guild]["control"].append(role)
+        self.data[guild]["control"].append(str(role.id))
 
-        with open("guilds.json", "w") as f:     
-            json.dump(self.data, f, indent=4)
-        return 1
+        try:
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            self.backup = self.data.copy()
+            return 1
+        except:
+            self.data = self.backup.copy()
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            return 0
 
     def remove_control(self, guild, role):
         try:
-            self.data[guild]["control"].remove(role)
+            print(self.data[guild]["control"])
+            self.data[guild]["control"].remove(str(role.id))
         except:
             return 0
 
-        with open("guilds.json", "w") as f:     
-            json.dump(self.data, f, indent=4)
-        return 1
+        try:
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            self.backup = self.data.copy()
+            return 1
+        except:
+            self.data = self.backup.copy()
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            return 0
 
     def get_control_list(self, guild):
-        arr = self.data[guild]["control"]
+        arr = []
+        for i in self.data[guild]["control"]:
+            arr.append(i)
         return arr
 
     def add_guild(self, guild, channel):
-        self.data[guild] = {"announcements": channel, "control": ["everyone"]}
+        self.data[guild] = {"announcements": channel, "control": []}
         
-        with open("guilds.json", "w") as f:     
-            json.dump(self.data, f, indent=4)
-        return 1
+        try:
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            self.backup = self.data.copy()
+            return 1
+        except:
+            self.data = self.backup.copy()
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            return 0
 
     def remove_guild(self, guild):
         self.data.pop(guild)
 
-        with open("guilds.json", "w") as f:     
-            json.dump(self.data, f, indent=4)
-        return 1
+        try:
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            self.backup = self.data.copy()
+            return 1
+        except:
+            self.data = self.backup.copy()
+            with open("guilds.json", "w") as f:     
+                json.dump(self.data, f, indent=4)
+            return 0
 
 
 async def check_guilds():
