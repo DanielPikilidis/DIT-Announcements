@@ -180,7 +180,7 @@ async def config(ctx, *, arg="default"):
             ret = data.remove_control(str(ctx.guild.id), role)
             ret2 = data.get_control_list(str(ctx.guild.id))
             if ret:
-                logging.info(f"Guild {ctx.guild.id}: Removed role Role from control list.")
+                logging.info(f"Guild {ctx.guild.id}: Removed Role {role.id} from control list.")
                 if len(ret2):
                     await ctx.channel.send(f"Successfully removed role {role} from the control list.")
                 else:
@@ -188,7 +188,7 @@ async def config(ctx, *, arg="default"):
                                             "There are no more roles left in the control list. Now everyone "
                                             "can control the bot!")
             else:
-                logging.warning(f"Guild {ctx.guild.id}: Failed to remove Role {role} from control list.")
+                logging.warning(f"Guild {ctx.guild.id}: Failed to remove Role {role.id} from control list.")
                 await ctx.channel.send("That role isn't in the control list.")
     elif arg[0].upper() == "CONTROL_LIST":
         control_list = data.get_control_list(str(ctx.guild.id))
