@@ -10,7 +10,7 @@ f.close()
 intents = discord.Intents.default()
 intents.members = True
 
-prefix = "./"
+prefix = "//"
 
 bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
 
@@ -52,7 +52,7 @@ async def on_guild_join(guild):
     global data
     channel = await guild.create_text_channel("announcements")
     await channel.send("You can move this channel to any category you want. If you delete it, you will have to"
-                       "reconfigure the bot with ./config.\n"
+                       "reconfigure the bot with //config.\n"
                        "By default everyone can config the bot. You should probably change that.\n"
                        "The server owner can always control the bot. Even if he's not in a control role.\n"
                        "If the control list is empty, everyone can control the bot, so you have to keep at least"
@@ -87,7 +87,7 @@ async def config(ctx, *, arg="default"):
     global data
 
     if arg == "default":
-        await ctx.channel.send("Missing arguments, type ./config help to see available commands.")
+        await ctx.channel.send("Missing arguments, type //config help to see available commands.")
         return
 
     if ctx.message.author != ctx.guild.owner:
@@ -113,15 +113,15 @@ async def config(ctx, *, arg="default"):
     if arg[0].upper() == "HELP":
         embed = discord.Embed(title="Config Help",
                               url="https://github.com/DanielPikilidis/DIT-Announcements",
-                              description="All options for ./config.",
+                              description="All options for //config.",
                               color=discord.Color.red()
                              )
-        embed.add_field(name="./config announcements #channel_name.",
+        embed.add_field(name="//config announcements #channel_name.",
                         value="Change to which channel the bot sends the new announcements.", inline=False)
-        embed.add_field(name="./config permissions add/remove @role_name.", 
+        embed.add_field(name="//config permissions add/remove @role_name.", 
                         value="Add / Remove roles that will be allowed to configure the bot."
                               "You have to tag the role to add it.", inline=False)
-        embed.add_field(name="./config control_list.",
+        embed.add_field(name="//config control_list.",
                         value="Get a list with all the roles that are allowed to configure the bot.", inline=False)
 
         await ctx.channel.send(embed=embed)
@@ -214,8 +214,8 @@ async def help(ctx):
                           color=discord.Color.blue()
                           )
 
-    embed.add_field(name="./config \{#channel_name\}",
-                    value="Configure the bot. \"./config help\" to get a list of everything you can do.", inline=False)
+    embed.add_field(name="//config \{#channel_name\}",
+                    value="Configure the bot. \"//config help\" to get a list of everything you can do.", inline=False)
 
     await ctx.channel.send(embed=embed)
 
@@ -403,7 +403,6 @@ async def get_announcements():
                                      )
                 #embed.set_author(name="Created by 0x64616e69656c#1234", url="https://github.com/DanielPikilidis/DIT-Announcements", icon_url="https://avatars.githubusercontent.com/u/50553687?s=400&v=4")
                 embed.set_thumbnail(url="https://pbs.twimg.com/profile_images/1255901921896009729/xKsBUtgN.jpg")
-                embed.set_footer(text=f"{date}\nCreated by github.com/DanielPikilidis")
                 channels = data.get_announcement_channels()
                 for ch in channels:
                     current = bot.get_channel(int(ch))
