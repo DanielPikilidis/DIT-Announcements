@@ -16,10 +16,16 @@ bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
 
 data = None
 
+# Silence discord's logging messages. (Only critical should appear, but I haven't seen any yet)
+discord_logger = logging.getLogger('discord')
+discord_logger.setLevel(logging.CRITICAL)
+handler = logging.FileHandler(filename="logs/discord.log", encoding="utf-8", mode='w')
+handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
+discord_logger.addHandler(handler)
+
 logname = "logs/output.log"
 handler = TimedRotatingFileHandler(logname, when="midnight", interval=1, backupCount=1)
 handler.suffix = "%Y%m%d"
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -69,11 +75,9 @@ async def on_guild_remove(guild):
     global data
     ret = data.remove_guild(str(guild.id))
     if ret:
-        logging.info()
-        print(f"Guild {guild.id}: Removed from json file.")
+        logging.info(f"Guild {guild.id}: Removed from json file.")
     else:
-        logging.warning()
-        print(f"Guild {guild.id}: Failed to remove from json file.")
+        logging.warning(f"Guild {guild.id}: Failed to remove from json file.")
 
 @bot.event
 async def on_message(message):
@@ -160,7 +164,7 @@ async def config(ctx, *, arg="default"):
             return
         
         if arg[1].upper() != "ADD" and arg[1].upper() != "REMOVE":
-            await ctx.channel.send("Unknown argument for ./config permissions. See ./config help")
+            await ctx.channel.send("Unknown argument for //config permissions. See //config help")
             return
 
         try:
@@ -204,7 +208,7 @@ async def config(ctx, *, arg="default"):
             s += i.name
         await ctx.channel.send(s)
     else:
-        await ctx.channel.send("Unknown parameter for config. See ./config help")
+        await ctx.channel.send("Unknown parameter for config. See //config help")
 
 @bot.command(pass_contect=True)
 async def help(ctx):
@@ -357,7 +361,7 @@ async def check_guilds():
         if i not in stored:
             guild = bot.get_guild(int(i))
             channel = await guild.create_text_channel("announcements")
-            await channel.send("You can move this channel to any category you want. If you delete it, you will have to reconfigure the bot with ./config")
+            await channel.send("You can move this channel to any category you want. If you delete it, you will have to reconfigure the bot with //config")
             ret = data.add_guild(str(guild.id), str(channel.id))
             if ret:
                 logging.info(f"Guild {guild.id}: Added to json file.")
@@ -403,6 +407,7 @@ async def get_announcements():
                                      )
                 #embed.set_author(name="Created by 0x64616e69656c#1234", url="https://github.com/DanielPikilidis/DIT-Announcements", icon_url="https://avatars.githubusercontent.com/u/50553687?s=400&v=4")
                 embed.set_thumbnail(url="https://pbs.twimg.com/profile_images/1255901921896009729/xKsBUtgN.jpg")
+                embed.set_footer(text=date)
                 channels = data.get_announcement_channels()
                 for ch in channels:
                     current = bot.get_channel(int(ch))
