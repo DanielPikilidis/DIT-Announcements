@@ -1,7 +1,7 @@
 import discord, json, asyncio, datetime, logging, sys, time
 from discord.ext import commands
 from logging.handlers import TimedRotatingFileHandler
-from announcements import *
+from announcements_dit import *
 
 f = open("config.txt", "r")
 bot_key = f.read()  # There should be only 1 line in the file, the key.
@@ -51,6 +51,7 @@ async def on_ready():
         logging.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
 
     bot.loop.create_task(get_announcements())
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
     logging.info("Bot logged in and ready")
 
 @bot.event
@@ -87,7 +88,7 @@ async def on_message(message):
 ################# BOT COMMANDS #################
 
 @bot.command(pass_context=True)
-async def config(ctx, *, arg="default"):
+async def config(ctx: commands.Context, *, arg="default"):
     global data
 
     if arg == "default":
@@ -211,7 +212,7 @@ async def config(ctx, *, arg="default"):
         await ctx.channel.send("Unknown parameter for config. See //config help")
 
 @bot.command(pass_contect=True)
-async def help(ctx):
+async def help(ctx: commands.Context):
     embed = discord.Embed(title="Help",
                           url="https://github.com/DanielPikilidis/DIT-Announcements",
                           description="All the commands the bot supports are listed here.",
@@ -378,19 +379,19 @@ async def check_guilds():
 
     for i in stored:
         if i not in joined:
-            ret = data.remove(str(guild.id))
+            ret = data.remove_guild(str(i))
             if ret:
-                logging.info(f"Guild {guild.id}: Added to json file.")
+                logging.info(f"Guild {i}: Added to json file.")
             else:
-                logging.warning(f"Guild {guild.id}: Failed to add to json file.")
+                logging.warning(f"Guild {i}: Failed to add to json file.")
 
 
 ################# ALWAYS RUNNING FUNCTIONS #################
 
 async def get_announcements():
-    old_list = get_an_list()
+    ann = Announcements()
     while True:
-        new_list, announcements = check_for_new(old_list)
+        announcements = ann.check_for_new()
         # announcements also has tags for every new announcement. I haven't used them anywhere yet.
         if announcements:
             date = datetime.datetime.now().strftime("%A, %d/%m/%Y, %H:%M")
@@ -412,7 +413,6 @@ async def get_announcements():
                 for ch in channels:
                     current = bot.get_channel(int(ch))
                     await current.send(embed=embed)
-            old_list = new_list
             end = time.time()
             total = end - start
             total_formatted = str(datetime.timedelta(seconds=int(total)))
