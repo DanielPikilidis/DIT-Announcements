@@ -92,10 +92,10 @@ async def config(ctx: commands.Context, *, arg="default"):
     global data
 
     if arg == "default":
-        await ctx.channel.send("Missing arguments, type //config help to see available commands.")
+        await ctx.send("Missing arguments, type //config help to see available commands.")
         return
 
-    if ctx.message.author != ctx.guild.owner:
+    if ctx.author != ctx.guild.owner:
         author_roles = ctx.author.roles
         control_list = data.get_control_list(str(ctx.guild.id))
 
@@ -111,7 +111,7 @@ async def config(ctx: commands.Context, *, arg="default"):
                     break
             
         if not has_permissions:
-            await ctx.channel.send("You don't have permission to configure the bot.")
+            await ctx.send("You don't have permission to configure the bot.")
             return
 
     arg = arg.split()
@@ -129,10 +129,10 @@ async def config(ctx: commands.Context, *, arg="default"):
         embed.add_field(name="//config control_list.",
                         value="Get a list with all the roles that are allowed to configure the bot.", inline=False)
 
-        await ctx.channel.send(embed=embed)
+        await ctx.send(embed=embed)
     elif arg[0].upper() == "ANNOUNCEMENTS":
         if len(arg) < 2:
-            await ctx.channel.send("Invalid Arguments.")
+            await ctx.send("Invalid Arguments.")
             return
 
         channel = str(arg[1][2:-1])
@@ -140,7 +140,7 @@ async def config(ctx: commands.Context, *, arg="default"):
         try:
             channel = bot.get_channel(int(channel))
         except:
-            await ctx.channel.send("Invalid channel.")
+            await ctx.send("Invalid channel.")
             return
 
         valid_channel = False
@@ -150,66 +150,66 @@ async def config(ctx: commands.Context, *, arg="default"):
                 break
         
         if not valid_channel:
-            await ctx.channel.send("Invalid channel.")
+            await ctx.send("Invalid channel.")
             return
 
         ret = data.configure_announcements_channel(str(ctx.guild.id), str(channel.id))
         if ret:
             logging.info(f"Guild {ctx.guild.id}: Changed announcements channel")
-            await ctx.channel.send("Channel for announcements changed.")
+            await ctx.send("Channel for announcements changed.")
         else:
             logging.warning(f"Guild {ctx.guild.id}: Failed to change announcements channel.")
     elif arg[0].upper() == "PERMISSIONS":
         if len(arg) < 3:
-            await ctx.channel.send("Invalid Arguments.")
+            await ctx.send("Invalid Arguments.")
             return
         
         if arg[1].upper() != "ADD" and arg[1].upper() != "REMOVE":
-            await ctx.channel.send("Unknown argument for //config permissions. See //config help")
+            await ctx.send("Unknown argument for //config permissions. See //config help")
             return
 
         try:
             role = ctx.guild.get_role(int(arg[2][3:-1]))
         except:
-            await ctx.channel.send("That role doesn't exist.")
+            await ctx.send("That role doesn't exist.")
             return
         if arg[1].upper() == "ADD":
             ret = data.add_control(str(ctx.guild.id), role)
             if ret:
                 logging.info(f"Guild {ctx.guild.id}: Added Role {role.id} to control list.")
-                await ctx.channel.send(f"Successfully added role {role} to the control list.")
+                await ctx.send(f"Successfully added role {role} to the control list.")
             else:
                 logging.info(f"Guild {ctx.guild.id}: Role {role.id} already in control list.")
-                await ctx.channel.send(f"That role {role} is already in the control list.")
+                await ctx.send(f"That role {role} is already in the control list.")
         elif arg[1].upper() == "REMOVE":
             ret = data.remove_control(str(ctx.guild.id), role)
-            ret2 = data.get_control_list(str(ctx.guild.id))
+            control_list = data.get_control_list(str(ctx.guild.id))
             if ret:
                 logging.info(f"Guild {ctx.guild.id}: Removed Role {role.id} from control list.")
-                if len(ret2):
-                    await ctx.channel.send(f"Successfully removed role {role} from the control list.")
+                if len(control_list):
+                    await ctx.send(f"Successfully removed role {role} from the control list.")
                 else:
-                    await ctx.channel.send(f"Successfully removed role {role} from the control list.\n"
+                    await ctx.send(f"Successfully removed role {role} from the control list.\n"
                                             "There are no more roles left in the control list. Now everyone "
                                             "can control the bot!")
             else:
                 logging.warning(f"Guild {ctx.guild.id}: Failed to remove Role {role.id} from control list.")
-                await ctx.channel.send("That role isn't in the control list.")
+                await ctx.send("That role isn't in the control list.")
     elif arg[0].upper() == "CONTROL_LIST":
         control_list = data.get_control_list(str(ctx.guild.id))
         for i in range(len(control_list)):
             control_list[i] = ctx.guild.get_role(int(control_list[i]))
             
         if not len(control_list):
-            await ctx.channel.send("Everyone is allowed to control the bot.")
+            await ctx.send("Everyone is allowed to control the bot.")
             return
         s = control_list[0].name        
         for i in control_list[1:]:
             s += ", "
             s += i.name
-        await ctx.channel.send(s)
+        await ctx.send(s)
     else:
-        await ctx.channel.send("Unknown parameter for config. See //config help")
+        await ctx.send("Unknown parameter for config. See //config help")
 
 @bot.command(pass_contect=True)
 async def help(ctx: commands.Context):
@@ -219,10 +219,10 @@ async def help(ctx: commands.Context):
                           color=discord.Color.blue()
                           )
 
-    embed.add_field(name="//config \{#channel_name\}",
-                    value="Configure the bot. \"//config help\" to get a list of everything you can do.", inline=False)
+    embed.add_field(name="//config help",
+                    value="Configure the bot.", inline=False)
 
-    await ctx.channel.send(embed=embed)
+    await ctx.send(embed=embed)
 
 
 ################# HELPER FUNCTIONS #################
@@ -245,18 +245,7 @@ class GuildData:
 
     def configure_announcements_channel(self, guild, channel):
         self.data[guild]["announcements"] = channel
-
-        try:
-            with open("guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
-            self.backup = self.data.copy()
-            return 1
-        except:
-            logging.error("Failed to make changes to json file. Reverting to old.")
-            self.data = self.backup.copy()
-            with open("guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
-            return 0
+        return self.write_to_json()
 
     def add_control(self, guild, role):
         try:
@@ -267,36 +256,14 @@ class GuildData:
             pass
 
         self.data[guild]["control"].append(str(role.id))
-
-        try:
-            with open("guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
-            self.backup = self.data.copy()
-            return 1
-        except:
-            logging.error("Failed to make changes to json file. Reverting to old.")
-            self.data = self.backup.copy()
-            with open("guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
-            return 0
+        return self.write_to_json()
 
     def remove_control(self, guild, role):
         try:
             self.data[guild]["control"].remove(str(role.id))
         except:
             return 0
-
-        try:
-            with open("guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
-            self.backup = self.data.copy()
-            return 1
-        except:
-            logging.error("Failed to make changes to json file. Reverting to old.")
-            self.data = self.backup.copy()
-            with open("guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
-            return 0
+        return self.write_to_json()
 
     def get_control_list(self, guild):
         arr = []
@@ -306,22 +273,13 @@ class GuildData:
 
     def add_guild(self, guild, channel):
         self.data[guild] = {"announcements": channel, "control": []}
-        
-        try:
-            with open("guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
-            self.backup = self.data.copy()
-            return 1
-        except:
-            logging.error("Failed to make changes to json file. Reverting to old.")
-            self.data = self.backup.copy()
-            with open("guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
-            return 0
+        return self.write_to_json()
 
     def remove_guild(self, guild):
         self.data.pop(guild)
+        return self.write_to_json()
 
+    def write_to_json(self):
         try:
             with open("guilds.json", "w") as f:     
                 json.dump(self.data, f, indent=4)
