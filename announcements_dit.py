@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup as bs
-from urllib.request import urlopen
+import requests
 import json
 
 class Announcements:
@@ -12,18 +12,16 @@ class Announcements:
             self.old_list = self.get_an_list()
 
     def get_an_list(self):
-        page = urlopen(self.url)
-
-        html_bytes = page.read()
-        html = html_bytes.decode("utf-8")
+        # Not using the rss feed because it doesn't return the categories for each announcement.
+        page = requests.get(self.url)
+        html = page.text
 
         soup = bs(html, features="html.parser")
         table = soup.findChildren("tbody")[0]   # Getting the table with the announcements
 
         announcements_raw = table.findChildren("tr")    # A list with all the announcements (everything from <tr> to </tr>)
-
+        
         announcements = []
-
         for i in announcements_raw:
             # There are 4 td fields in each announcements. The first 2 are useless (for this bot).
             # We only need the 3rd and 4th.

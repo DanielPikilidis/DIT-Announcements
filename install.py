@@ -8,6 +8,7 @@ os.system("pip3 install datetime")
 os.system("pip3 install sys")
 os.system("pip3 install logging")
 os.system("pip3 install time")
+os.system("pip3 install requests")
 
 os.system("touch config.txt")
 os.system("mkdir logs")
