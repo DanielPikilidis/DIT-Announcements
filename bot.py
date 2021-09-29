@@ -87,7 +87,7 @@ async def on_message(message):
 
 ################# BOT COMMANDS #################
 
-@bot.command(pass_context=True)
+@bot.command()
 async def config(ctx: commands.Context, *, arg="default"):
     global data
 
@@ -211,7 +211,7 @@ async def config(ctx: commands.Context, *, arg="default"):
     else:
         await ctx.send("Unknown parameter for config. See //config help")
 
-@bot.command(pass_contect=True)
+@bot.command()
 async def help(ctx: commands.Context):
     embed = discord.Embed(title="Help",
                           url="https://github.com/DanielPikilidis/DIT-Announcements",
@@ -355,6 +355,7 @@ async def get_announcements():
             date = datetime.datetime.now().strftime("%A, %d/%m/%Y, %H:%M")
             logging.info("Found new announcements, sending.")
             start = time.time()
+            channels = data.get_announcement_channels()
             for i in announcements:
                 link = i["link"]
                 title = i["title"]
@@ -367,7 +368,6 @@ async def get_announcements():
                 #embed.set_author(name="Created by 0x64616e69656c#1234", url="https://github.com/DanielPikilidis/DIT-Announcements", icon_url="https://avatars.githubusercontent.com/u/50553687?s=400&v=4")
                 embed.set_thumbnail(url="https://pbs.twimg.com/profile_images/1255901921896009729/xKsBUtgN.jpg")
                 embed.set_footer(text=date)
-                channels = data.get_announcement_channels()
                 for ch in channels:
                     current = bot.get_channel(int(ch))
                     await current.send(embed=embed)
@@ -375,7 +375,7 @@ async def get_announcements():
             total = end - start
             total_formatted = str(datetime.timedelta(seconds=int(total)))
             logging.info(f"Successfully sent new announcements to all servers. Total time: {total_formatted}")
-        await asyncio.sleep(30)
+        await asyncio.sleep(15)
 
 if __name__ == "__main__":
     bot.run(bot_key)
