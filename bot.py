@@ -37,22 +37,30 @@ logging.basicConfig(
 
 ################# BOT EVENTS #################
 
+# Sometimes the bot just logs off and then back on causing the on_ready to run again.
+started = False
+
 @bot.event
 async def on_ready():
-    global data
-    data = GuildData()
-    ret = await check_guilds()
-    if ret:
-        logging.info("Guild check successful.")
-    else:
-        with open("guilds.json", "a+") as f:
-            json.dump({}, f, indent=4)
+    global started
+    if not started:
+        global data
+        data = GuildData()
+        ret = await check_guilds()
+        if ret:
+            logging.info("Guild check successful.")
+        else:
+            with open("guilds.json", "a+") as f:
+                json.dump({}, f, indent=4)
 
-        logging.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
+            logging.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
 
-    bot.loop.create_task(get_announcements())
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
-    logging.info("Bot logged in and ready")
+        ann = Announcements()
+        bot.loop.create_task(get_announcements(ann))
+        bot.loop.create_task(remove_deleted(ann))
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
+        logging.info("Bot logged in and ready")
+        started = True
 
 @bot.event
 async def on_guild_join(guild):
@@ -346,8 +354,7 @@ async def check_guilds():
 
 ################# ALWAYS RUNNING FUNCTIONS #################
 
-async def get_announcements():
-    ann = Announcements()
+async def get_announcements(ann: Announcements):
     cat_colors = {"Γενικά": "⚪ ", "Προπτυχιακά": "🔴 ", "Μεταπτυχιακά": "🔵 ", "Διδακτορικά": "🟣 ",
                   "CIVIS": "⚫ ", "Πρακτική Άσκηση": "🟠 ", "Νέες θέσεις εργασίας": "🟢 "}
     while True:
@@ -388,6 +395,24 @@ async def get_announcements():
             total_formatted = str(datetime.timedelta(seconds=int(total)))
             logging.info(f"Successfully sent new announcements to all servers. Total time: {total_formatted}")
         await asyncio.sleep(15)
+
+async def remove_deleted(ann: Announcements):
+    while True:
+        # Checks every 30 minutes
+        ids = ann.get_old_ids()
+        channels = data.get_announcement_channels()
+        for ch in channels:
+            current = bot.get_channel(int(ch))
+            messages = await current.history(limit=15).flatten()
+            for message in messages:
+                try:
+                    cur_embed = message.embeds[0]
+                    if cur_embed.url not in ids:
+                        logging.info("Found deleted announcement, removing from channels.")
+                        await message.delete()
+                except:
+                    continue
+        await asyncio.sleep(1800)
 
 if __name__ == "__main__":
     bot.run(bot_key)

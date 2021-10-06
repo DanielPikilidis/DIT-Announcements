@@ -64,3 +64,7 @@ class Announcements:
             return new_announcements
         else:
             return None
+
+    def get_old_ids(self):
+        return [i["link"] for i in self.old_list]
+        
