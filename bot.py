@@ -348,6 +348,8 @@ async def check_guilds():
 
 async def get_announcements():
     ann = Announcements()
+    cat_colors = {"Γενικά": "⚪ ", "Προπτυχιακά": "🔴 ", "Μεταπτυχιακά": "🔵 ", "Διδακτορικά": "🟣 ",
+                  "CIVIS": "⚫ ", "Πρακτική Άσκηση": "🟠 ", "Νέες θέσεις εργασίας": "🟢 "}
     while True:
         announcements = ann.check_for_new()
         # announcements also has tags for every new announcement. I haven't used them anywhere yet.
@@ -359,13 +361,23 @@ async def get_announcements():
             for i in announcements:
                 link = i["link"]
                 title = i["title"]
+                categories = ""
+                length = len(i["tags"]) - 1
+                for tag in i["tags"]:                    
+                    if i["tags"].index(tag) != length:
+                        tag = tag[:-1]
+
+                    try:
+                        color = cat_colors[tag]
+                    except:
+                        color = "🟡 "
+                    categories += f"\n{color} {tag}"
                 embed = discord.Embed(
                                       title="New Announcement!", 
                                       url=link,
-                                      description=title,
+                                      description=f"{title}\n\n{categories}",
                                       color=discord.Color.blue()
                                      )
-                #embed.set_author(name="Created by 0x64616e69656c#1234", url="https://github.com/DanielPikilidis/DIT-Announcements", icon_url="https://avatars.githubusercontent.com/u/50553687?s=400&v=4")
                 embed.set_thumbnail(url="https://pbs.twimg.com/profile_images/1255901921896009729/xKsBUtgN.jpg")
                 embed.set_footer(text=date)
                 for ch in channels:
