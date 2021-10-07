@@ -4,7 +4,7 @@ Sends new announcements from https://www.di.uoa.gr/announcements to discord
 <br>
 You can invite the bot or install it to host it yourself. (instructions below)
 <br>
-Invite link: https://discord.com/api/oauth2/authorize?client_id=881568952378073149&permissions=19472&scope=bot
+Invite link: https://discord.com/api/oauth2/authorize?client_id=881568952378073149&permissions=27664&scope=bot
 <br>
 
 ## Installation
@@ -15,4 +15,4 @@ Invite link: https://discord.com/api/oauth2/authorize?client_id=8815689523780731
 <br>
 Then to start the bot just run "python3 bot.py"
 <br>
-The permissions for the invitation are 19472. (Manage channels, View Channels, Send Messages, Embed links)
+The permissions for the invitation are 27664. (Manage channels, View Channels, Send Messages, Manage Messages, Embed links)

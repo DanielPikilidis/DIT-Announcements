@@ -11,6 +11,12 @@ class Announcements:
         except:
             self.old_list = self.get_an_list()
 
+        try:
+            with open("already_sent.json", "r") as f:
+                self.already_sent = json.loads(f.read())
+        except:
+            self.already_sent = []
+
     def get_an_list(self):
         # Not using the rss feed because it doesn't return the categories for each announcement.
         page = requests.get(self.url)
@@ -51,7 +57,12 @@ class Announcements:
         old_link = self.old_list[0]["link"]
         new_announcements = []
         while new_link != old_link:
-            new_announcements.append(new_list.pop(0))
+            new = new_list.pop(0)
+            if new["link"] in self.already_sent:
+                break
+            new_announcements.append(new)
+            self.already_sent.append(new["link"])
+
             if not len(new_list):
                 break
             new_link = new_list[0]["link"]
@@ -61,6 +72,8 @@ class Announcements:
             json.dump(self.old_list, f, indent=4)
 
         if len(new_announcements):
+            with open("already_sent.json", "w") as f:
+                json.dump(self.already_sent, f, indent=4)
             return new_announcements
         else:
             return None

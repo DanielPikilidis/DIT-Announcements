@@ -408,7 +408,7 @@ async def remove_deleted(ann: Announcements):
                 try:
                     cur_embed = message.embeds[0]
                     if cur_embed.url not in ids:
-                        logging.info("Found deleted announcement, removing from channels.")
+                        logging.info(f"Found deleted announcement, removing from channel {ch}.")
                         await message.delete()
                 except:
                     continue
