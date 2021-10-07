@@ -57,6 +57,7 @@ async def on_ready():
 
         ann = Announcements()
         bot.loop.create_task(get_announcements(ann))
+        await asyncio.sleep(5)
         bot.loop.create_task(remove_deleted(ann))
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
         logging.info("Bot logged in and ready")
@@ -399,7 +400,7 @@ async def get_announcements(ann: Announcements):
 async def remove_deleted(ann: Announcements):
     while True:
         # Checks every 30 minutes
-        ids = ann.get_old_ids()
+        ids = ann.get_all_announcements()
         channels = data.get_announcement_channels()
         for ch in channels:
             current = bot.get_channel(int(ch))
@@ -407,9 +408,12 @@ async def remove_deleted(ann: Announcements):
             for message in messages:
                 try:
                     cur_embed = message.embeds[0]
-                    if cur_embed.url not in ids:
-                        logging.info(f"Found deleted announcement, removing from channel {ch}.")
-                        await message.delete()
+                    if cur_embed.url not in ids["sticky"]:
+                        # If the url is in the sticky, there's no reason to check if it's in the normal. 
+                        if cur_embed.url not in ids["normal"]:
+                            # If the url is neither in the sticky nor the normal, then it's removed.
+                            logging.info(f"Found deleted announcement, removing from channel {ch}.")
+                            await message.delete()
                 except:
                     continue
         await asyncio.sleep(1800)
