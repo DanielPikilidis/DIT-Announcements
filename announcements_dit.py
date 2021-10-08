@@ -68,7 +68,7 @@ class Announcements:
 
     def check_for_new(self):
         new_list = self.get_an_list()
-        temp = new_list.copy()
+        temp = {"sticky": new_list["sticky"].copy(), "normal": new_list["normal"].copy()}
 
         new_announcements = []
         if len(new_list["sticky"]):
@@ -76,7 +76,7 @@ class Announcements:
             new_link = new_list["sticky"][0]["link"]
             old_link = self.old_list["sticky"][0]["link"]
             while new_link != old_link:
-                new = new_list.pop(0)
+                new = new_list["sticky"].pop(0)
                 if new["link"] in self.already_sent:
                     break
                 new_announcements.append(new)
@@ -91,7 +91,7 @@ class Announcements:
         old_link = self.old_list["normal"][0]["link"]
         new_announcements = []
         while new_link != old_link:
-            new = new_list.pop(0)
+            new = new_list["normal"].pop(0)
             if new["link"] in self.already_sent:
                 break
             new_announcements.append(new)
