@@ -113,7 +113,7 @@ class Announcements:
         if len(new_announcements):
             with open("already_sent.json", "w") as f:
                 json.dump(self.already_sent, f, indent=4)
-            return new_announcements
+            return new_announcements[::-1]  # Reversing the list so the announcements are in the correct order
         else:
             return None
 

@@ -356,11 +356,11 @@ async def check_guilds():
 ################# ALWAYS RUNNING FUNCTIONS #################
 
 async def get_announcements(ann: Announcements):
+    # There are a few more tags, but since there are not enough colored circle emojis, I just use the yellow one.
     cat_colors = {"Γενικά": "⚪ ", "Προπτυχιακά": "🔴 ", "Μεταπτυχιακά": "🔵 ", "Διδακτορικά": "🟣 ",
                   "CIVIS": "⚫ ", "Πρακτική Άσκηση": "🟠 ", "Νέες θέσεις εργασίας": "🟢 "}
     while True:
         announcements = ann.check_for_new()
-        # announcements also has tags for every new announcement. I haven't used them anywhere yet.
         if announcements:
             date = datetime.datetime.now().strftime("%A, %d/%m/%Y, %H:%M")
             logging.info("Found new announcements, sending.")
@@ -380,12 +380,13 @@ async def get_announcements(ann: Announcements):
                     except:
                         color = "🟡 "
                     categories += f"\n{color} {tag}"
+                
                 embed = discord.Embed(
-                                      title="New Announcement!", 
-                                      url=link,
-                                      description=f"{title}\n\n{categories}",
-                                      color=discord.Color.blue()
-                                     )
+                    title="New Announcement!", 
+                    url=link,
+                    description=f"{title}\n\n{categories}",
+                    color=discord.Color.blue()
+                )
                 embed.set_thumbnail(url="https://pbs.twimg.com/profile_images/1255901921896009729/xKsBUtgN.jpg")
                 embed.set_footer(text=date)
                 for ch in channels:
