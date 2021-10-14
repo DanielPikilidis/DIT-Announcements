@@ -59,9 +59,9 @@ async def on_ready():
         bot.loop.create_task(get_announcements(ann))
         await asyncio.sleep(5)
         bot.loop.create_task(remove_deleted(ann))
-        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
         logging.info("Bot logged in and ready")
         started = True
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
 
 @bot.event
 async def on_guild_join(guild):
@@ -394,7 +394,7 @@ async def get_announcements(ann: Announcements):
             end = time.time()
             total = end - start
             total_formatted = str(datetime.timedelta(seconds=int(total)))
-            logging.info(f"Successfully sent new announcements to all servers. Total time: {total_formatted}")
+            logging.info(f"Successfully sent new announcements to {len(channels)} servers. Total time: {total_formatted}")
         await asyncio.sleep(15)
 
 async def remove_deleted(ann: Announcements):

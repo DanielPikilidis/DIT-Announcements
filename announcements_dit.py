@@ -31,8 +31,11 @@ class Announcements:
 
     def get_an_list(self):
         # Not using the rss feed because it doesn't return the categories for each announcement.
-        page = requests.get("https://www.di.uoa.gr/announcements")
-        html = page.text
+        try:
+            page = requests.get("https://www.di.uoa.gr/announcements")
+            html = page.text
+        except:
+            return None
 
         soup = bs(html, features="html.parser")
         table = soup.findChildren("tbody")[0]   # Getting the table with the announcements
@@ -68,6 +71,8 @@ class Announcements:
 
     def check_for_new(self):
         new_list = self.get_an_list()
+        if new_list == None:
+            return None
         temp = {"sticky": new_list["sticky"].copy(), "normal": new_list["normal"].copy()}
 
         new_announcements = []
