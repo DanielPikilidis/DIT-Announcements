@@ -38,7 +38,11 @@ class Announcements:
             return None
 
         soup = bs(html, features="html.parser")
-        table = soup.findChildren("tbody")[0]   # Getting the table with the announcements
+        try:
+            # The next line caused an error earlier today, no idea why. So now there's error handling.
+            table = soup.findChildren("tbody")[0]   # Getting the table with the announcements
+        except:
+            return None
 
         announcements_raw = table.findChildren("tr")    # A list with all the announcements (everything from <tr> to </tr>)
         
