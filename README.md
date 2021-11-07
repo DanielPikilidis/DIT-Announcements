@@ -9,10 +9,10 @@ Invite link: https://discord.com/api/oauth2/authorize?client_id=8815689523780731
 
 ## Installation
 0) To host it yourself you need an API key from discord. (https://discord.com/developers/docs/intro)
-1) Install os library (pip3 install os)
-2) Run install.py (python3 install.py)
-3) Paste your bot key in the config.txt file. Only 1 line with the key, nothing else in there.
+1) Run "pip install -r requirements.txt"
+2) Start the bot (python3 bot.py)
+3) Paste your key in the config.txt.
+4) Start the bot again.
 <br>
-Then to start the bot just run "python3 bot.py"
 <br>
 The permissions for the invitation are 27664. (Manage channels, View Channels, Send Messages, Manage Messages, Embed links)
