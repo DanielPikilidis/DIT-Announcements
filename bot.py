@@ -1,11 +1,7 @@
-import discord, json, asyncio, datetime, logging, sys, time
+import discord, json, asyncio, datetime, logging, sys, time, os
 from discord.ext import commands
 from logging.handlers import TimedRotatingFileHandler
 from announcements_dit import *
-
-f = open("config.txt", "r")
-bot_key = f.read()  # There should be only 1 line in the file, the key.
-f.close()
 
 intents = discord.Intents.default()
 intents.members = True
@@ -15,6 +11,9 @@ prefix = "//"
 bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
 
 data = None
+
+if not os.path.exists("logs"):
+    os.mkdir("logs")
 
 # Silence discord's logging messages. (Only critical should appear, but I haven't seen any yet)
 discord_logger = logging.getLogger('discord')
@@ -44,6 +43,8 @@ started = False
 async def on_ready():
     global started
     if not started:
+
+
         global data
         data = GuildData()
         ret = await check_guilds()
@@ -420,4 +421,15 @@ async def remove_deleted(ann: Announcements):
         await asyncio.sleep(1800)
 
 if __name__ == "__main__":
-    bot.run(bot_key)
+    # Checking if the required files are created
+    if not os.path.exists("guilds.json"):
+        with open("guilds.json", "a+") as f:
+            json.dump({}, f, indent=4)
+
+    if os.path.exists("config.txt"):
+        with open("config.txt", "r") as f:
+            bot_key = f.read()
+        bot.run(bot_key)
+    else:
+        open("config.txt", "w").close()
+        print("Paste the api key in the config.txt (nothing else in there) and restart the bot.")
