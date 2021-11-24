@@ -122,9 +122,14 @@ class Announcements:
             return None
 
     def get_all_announcements(self):
-        old = []
-        for i in self.old_list.values():
-            for n in i:
-                old.append(n["link"])
+        sticky_links = []
+        normal_links = []
+        for i in self.old_list["sticky"]:
+            sticky_links.append(i["link"])
+
+        for i in self.old_list["normal"]:
+            normal_links.append(i["link"])
+
+        old = {"sticky": sticky_links, "normal": normal_links}
         return old
         

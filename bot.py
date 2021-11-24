@@ -1,4 +1,4 @@
-import discord, json, asyncio, datetime, logging, sys, time, os
+import discord, json, asyncio, datetime, logging, sys, time, os, threading
 from discord.ext import commands
 from logging.handlers import TimedRotatingFileHandler
 from announcements_dit import *
@@ -433,3 +433,4 @@ if __name__ == "__main__":
     else:
         open("config.txt", "w").close()
         print("Paste the api key in the config.txt (nothing else in there) and restart the bot.")
+        
