@@ -6,6 +6,8 @@ You can invite the bot or install it to host it yourself. (instructions below)
 <br>
 Invite link: https://discord.com/api/oauth2/authorize?client_id=881568952378073149&permissions=27664&scope=bot
 <br>
+The base of the bot can be used for sending other announcements / notifications as well by adding more cogs.
+
 
 ## Installation
 For any method you will need an api key from discord.
