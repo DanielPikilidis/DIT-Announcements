@@ -251,16 +251,18 @@ class Main(commands.Cog):
 if __name__ == "__main__":
     bot.add_cog(Main(bot))
 
-    # Checking if the required files are created
+    if not os.path.exists("data"):
+        os.makedirs("data")
+
     if not os.path.exists("data/guilds.json"):
-        with open("data/guilds.json", "a+") as f:
-            json.dump({}, f, indent=4)
+        with open("data/guilds.json", "a+") as file:
+            json.dump({}, file, indent=4)
 
     if os.path.exists("data/config.txt"):
-        with open("data/config.txt", "r") as f:
-            bot_key = f.read()
+        with open("data/config.txt", "r") as file:
+            bot_key = file.read()
         bot.run(bot_key)
     else:
-        open("config.txt", "w").close()
-        print("Paste the api key in the config.txt (nothing else in there) and restart the bot.")
+        open("data/config.txt", "w").close()
+        print("Paste your key in config.txt file in data/")
         
