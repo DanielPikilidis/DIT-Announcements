@@ -14,20 +14,20 @@ class DitAnnouncements(commands.Cog):
         self.category_colors = {"Γενικά": "⚪ ", "Προπτυχιακά": "🔴 ", "Μεταπτυχιακά": "🔵 ", "Διδακτορικά": "🟣 ",
                   "CIVIS": "⚫ ", "Πρακτική Άσκηση": "🟠 ", "Νέες θέσεις εργασίας": "🟢 "}
 
-        if os.path.exists("old_list.json"):
-            with open("old_list.json", "r") as file:
+        if os.path.exists("data/old_list.json"):
+            with open("data/old_list.json", "r") as file:
                 self.old_list = json.loads(file.read())
         else:
             self.old_list = self.get_an_list()
-            with open("old_list.json", "w") as file:
+            with open("data/old_list.json", "w") as file:
                 json.dump(self.old_list, file, indent=4)
 
-        if os.path.exists("already_sent.json"):
-            with open("already_sent.json", "r") as file:
+        if os.path.exists("data/already_sent.json"):
+            with open("data/already_sent.json", "r") as file:
                 self.already_sent = json.loads(file.read())
         else:
             self.already_sent = []
-            with open("already_sent.json", "w") as file:
+            with open("data/already_sent.json", "w") as file:
                 json.dump(self.already_sent.json, file, indent=4)
 
     def get_an_list(self):
@@ -98,11 +98,11 @@ class DitAnnouncements(commands.Cog):
             new_link = new_list["normal"][0]["link"]
 
         self.old_list = temp
-        with open("old_list.json", "w") as f:
+        with open("data/old_list.json", "w") as f:
             json.dump(self.old_list, f, indent=4)
 
         if len(new_announcements):
-            with open("already_sent.json", "w") as f:
+            with open("data/already_sent.json", "w") as f:
                 json.dump(self.already_sent, f, indent=4)
             return new_announcements[::-1]  # Reversing the list so the announcements are in the correct order
         else:
@@ -125,7 +125,7 @@ class DitAnnouncements(commands.Cog):
         announcements = self.check_for_new()
         if announcements:
             date = datetime.datetime.now().strftime("%A, %d/%m/%Y, %H:%M")
-            logging.info("Found new announcements, sending.")
+            self.logger.info("Found new announcements, sending.")
             start = time.time()
             channels = self.bot.data.get_announcement_channels()
             for i in announcements:
@@ -157,7 +157,7 @@ class DitAnnouncements(commands.Cog):
             end = time.time()
             total = end - start
             total_formatted = str(datetime.timedelta(seconds=int(total)))
-            logging.info(f"Successfully sent new announcements to {len(channels)} servers. Total time: {total_formatted}")
+            self.logger.info(f"Successfully sent new announcements to {len(channels)} servers. Total time: {total_formatted}")
         
     @tasks.loop(minutes=30.0)
     async def remove_deleted_announcements(self):
@@ -173,7 +173,7 @@ class DitAnnouncements(commands.Cog):
                         # If the url is in the sticky, there's no reason to check if it's in the normal. 
                         if cur_embed.url not in ids["normal"]:
                             # If the url is neither in the sticky nor the normal, then it's removed.
-                            logging.info(f"Found deleted announcement, removing from channel {ch}.")
+                            self.logger.info(f"Found deleted announcement, removing from channel {ch}.")
                             await message.delete()
                 except:
                     continue

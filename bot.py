@@ -49,7 +49,7 @@ class Main(commands.Cog):
             if result:
                 logging.info("Guild check completed.")
             else:
-                with open("guilds.json", "w") as file:
+                with open("data/guilds.json", "w") as file:
                     json.dump({}, file, indent=4)
                 
                 logging.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
@@ -252,12 +252,12 @@ if __name__ == "__main__":
     bot.add_cog(Main(bot))
 
     # Checking if the required files are created
-    if not os.path.exists("guilds.json"):
-        with open("guilds.json", "a+") as f:
+    if not os.path.exists("data/guilds.json"):
+        with open("data/guilds.json", "a+") as f:
             json.dump({}, f, indent=4)
 
-    if os.path.exists("config.txt"):
-        with open("config.txt", "r") as f:
+    if os.path.exists("data/config.txt"):
+        with open("data/config.txt", "r") as f:
             bot_key = f.read()
         bot.run(bot_key)
     else:

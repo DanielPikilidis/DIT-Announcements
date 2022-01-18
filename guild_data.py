@@ -6,7 +6,7 @@ class GuildData:
         self.bot = bot
         self.logger = logger
         try:
-            with open("guilds.json", "r") as file:
+            with open("data/guilds.json", "r") as file:
                 self.data = json.loads(file.read())
                 self.backup = self.data.copy()
         except IOError:
@@ -68,14 +68,14 @@ class GuildData:
 
     def write_to_json(self):
         try:
-            with open("guilds.json", "w") as f:     
+            with open("data/guilds.json", "w") as f:     
                 json.dump(self.data, f, indent=4)
             self.backup = self.data.copy()
             return 1
         except:
             self.logger.error("Failed to make changes to json file. Reverting to old.")
             self.data = self.backup.copy()
-            with open("guilds.json", "w") as f:     
+            with open("data/guilds.json", "w") as f:     
                 json.dump(self.data, f, indent=4)
             return 0
 
@@ -85,10 +85,10 @@ class GuildData:
 
         joined = self.bot.guilds
         try:
-            with open("guilds.json", "r") as f:
+            with open("data/guilds.json", "r") as f:
                 cur_data = json.loads(f.read())
         except IOError:
-            self.logger.critical("guilds.json doesn't exist.")
+            self.logger.critical("data/guilds.json doesn't exist.")
             return 0
 
         stored = list(cur_data.keys())
@@ -113,7 +113,7 @@ class GuildData:
                 else:
                     self.logger.warning(f"Guild {guild.id}: Failed to add to json file.")
 
-        with open("guilds.json", "r") as f:
+        with open("data/guilds.json", "r") as f:
             cur_data = json.loads(f.read())
         
         stored = list(cur_data.keys())
