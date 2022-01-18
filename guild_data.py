@@ -49,7 +49,7 @@ class GuildData:
             return True
         else:
             author_roles = ctx.author.roles
-            control_list = self.get_control_list(str(str.guild.id))
+            control_list = self.get_control_list(str(ctx.guild.id))
             if not len(control_list):
                 return True
             else:
