@@ -1,41 +1,15 @@
-import discord, json, logging, sys, os
+import discord, json, logging
 from discord.ext import commands
 from logging.handlers import TimedRotatingFileHandler
+from os import mkdir
+from os.path import exists
+from sys import stdout
 from announcements_dit import DitAnnouncements
 from guild_data import GuildData
 
 intents = discord.Intents.default()
 intents.members = True
 
-prefix = "//"
-
-bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
-
-if not os.path.exists("logs"):
-    os.mkdir("logs")
-
-# Silence discord's logging messages. (Only critical should appear, but I haven't seen any yet)
-discord_logger = logging.getLogger('discord')
-discord_logger.setLevel(logging.CRITICAL)
-handler = logging.FileHandler(filename="logs/discord.log", encoding="utf-8", mode='w')
-handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
-discord_logger.addHandler(handler)
-
-logname = "logs/output.log"
-handler = TimedRotatingFileHandler(logname, when="midnight", interval=1, backupCount=1)
-handler.suffix = "%Y%m%d"
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        handler,
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-
-################# BOT EVENTS #################
-
-# Sometimes the bot just logs off and then back on causing the on_ready to run again.
 class Main(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -44,19 +18,19 @@ class Main(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         if not self.started:
-            bot.data = GuildData(bot, logging)
+            bot.data = GuildData(bot)
             result = await bot.data.check_guilds()
             if result:
-                logging.info("Guild check completed.")
+                bot.logger.info("Guild check completed.")
             else:
                 with open("data/guilds.json", "w") as file:
                     json.dump({}, file, indent=4)
                 
-                logging.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
+                bot.logger.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
 
-            bot.add_cog(DitAnnouncements(bot, logging))
+            bot.add_cog(DitAnnouncements(bot))
             self.started = True
-            logging.info("Bot logged in and ready")
+            bot.logger.info("Bot logged in and ready")
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
 
     @commands.Cog.listener()
@@ -71,17 +45,17 @@ class Main(commands.Cog):
 
         ret = bot.data.add_guild(str(guild.id), str(channel.id))
         if ret:
-            logging.info(f"Guild {guild.id}: Added to json file.")
+            bot.logger.info(f"Guild {guild.id}: Added to json file.")
         else:
-            logging.warning(f"Guild {guild.id}: Failed to add to json file")
+            bot.logger.warning(f"Guild {guild.id}: Failed to add to json file")
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild):
         ret = bot.data.remove_guild(str(guild.id))
         if ret:
-            logging.info(f"Guild {guild.id}: Removed from json file.")
+            bot.logger.info(f"Guild {guild.id}: Removed from json file.")
         else:
-            logging.warning(f"Guild {guild.id}: Failed to remove from json file.")
+            bot.logger.warning(f"Guild {guild.id}: Failed to remove from json file.")
     
     ################# BOT COMMANDS #################
 
@@ -138,10 +112,10 @@ class Main(commands.Cog):
 
         result = bot.data.set_announcements_channel(str(ctx.guild.id), str(channel.id))
         if result:
-            logging.info(f"Guild {ctx.guild.id}: Changed announcements channel.")
+            bot.logger.info(f"Guild {ctx.guild.id}: Changed announcements channel.")
             await ctx.send("Channel for announcements changed.")
         else:
-            logging.warning(f"Guild {ctx.guild.id}: Failed to change announcements channel.")
+            bot.logger.warning(f"Guild {ctx.guild.id}: Failed to change announcements channel.")
             await ctx.send("Failed to change announcements channel.")
 
     @config.group(name="permissions", invoke_without_command=True)
@@ -178,10 +152,10 @@ class Main(commands.Cog):
 
         result = bot.data.add_control(str(ctx.guild.id), str(role.id))
         if result:
-            logging.info(f"Guild {ctx.guild.id}: Added role {role.id} to control list.")
+            bot.logger.info(f"Guild {ctx.guild.id}: Added role {role.id} to control list.")
             await ctx.send(f"Successfully added role {role.id} to the control list.")
         else:
-            logging.info(f"Guild {ctx.guild.id}: Role {role.id} already in control list.")
+            bot.logger.info(f"Guild {ctx.guild.id}: Role {role.id} already in control list.")
             await ctx.send(f"That role {role} is already in the control list.")
 
     @permissions.command(name="remove")
@@ -203,7 +177,7 @@ class Main(commands.Cog):
 
         result = bot.data.remove_control(str(ctx.guild.id), str(role.id))
         if result:
-            logging.info(f"Guild {ctx.guild.id}: Removed Role {role.id} from control list.")
+            bot.logger.info(f"Guild {ctx.guild.id}: Removed Role {role.id} from control list.")
             control_list = bot.data.get_control_list(str(ctx.guild.id))
             if len(control_list):
                 await ctx.send(f"Successfully removed role {role} from the control list.")
@@ -212,7 +186,7 @@ class Main(commands.Cog):
                                 "There are no more roles left in the control list. Now everyone "
                                 "can control the bot!")
         else:
-            logging.warning(f"Guild {ctx.guild.id}: Failed to remove Role {role.id} from control list.")
+            bot.logger.warning(f"Guild {ctx.guild.id}: Failed to remove Role {role.id} from control list.")
             await ctx.send("That role isn't in the control list.")
 
     @permissions.command(name="list")
@@ -248,17 +222,43 @@ class Main(commands.Cog):
             await ctx.send("Missing role parameter.")
 
 
+def setup_logger() -> logging.Logger:
+    discord_logger = logging.getLogger('discord')
+    handler = logging.FileHandler(filename="logs/discord.log", encoding="utf-8", mode='w')
+    handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
+    discord_logger.addHandler(handler)
+
+    logger = logging.getLogger("output")
+    logname = "logs/output.log"
+    logger.level = logging.INFO
+    handler = TimedRotatingFileHandler(logname, when="midnight", interval=1, backupCount=1)
+    handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    handler.suffix = "%Y%m%d"
+
+    logger.addHandler(handler)
+    logger.addHandler(logging.StreamHandler(stdout))
+    
+    return logger
+
 if __name__ == "__main__":
+    prefix = "//"
+    bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
+
+    bot.logger = setup_logger()
+
     bot.add_cog(Main(bot))
 
-    if not os.path.exists("data"):
-        os.makedirs("data")
+    if not exists("logs"):
+        mkdir("logs")
 
-    if not os.path.exists("data/guilds.json"):
+    if not exists("data"):
+        mkdir("data")
+
+    if not exists("data/guilds.json"):
         with open("data/guilds.json", "a+") as file:
             json.dump({}, file, indent=4)
 
-    if os.path.exists("data/config.txt"):
+    if exists("data/config.txt"):
         with open("data/config.txt", "r") as file:
             bot_key = file.read()
         bot.run(bot_key)

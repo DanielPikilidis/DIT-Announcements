@@ -1,179 +1,146 @@
-from bs4 import BeautifulSoup as bs
-import requests, json, discord, logging, os, datetime, time
+import discord
 from discord.ext import commands, tasks
+from datetime import datetime, timedelta
+from bs4 import BeautifulSoup as bs
+from feedparser import parse
+from time import mktime, time
+from requests import get
+from json import dump, loads
+from os.path import exists
+
 
 class DitAnnouncements(commands.Cog):
-    def __init__(self, bot: commands.Bot, logger: logging):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.logger = logger
-        self.send_new_annoucements.start()
-        self.remove_deleted_announcements.start()
         self.old_list = []
         self.already_sent = []
+        self.tag_colours = {
+            "Γενικά": "⚪ ", 
+            "Προπτυχιακά": "🔴 ", 
+            "Μεταπτυχιακά": "🔵 ", 
+            "Διδακτορικά": "🟣 ",
+            "CIVIS": "⚫ ", 
+            "Πρακτική Άσκηση": "🟠 ", 
+            "Νέες θέσεις εργασίας": "🟢 "
+        }
 
-        self.category_colors = {"Γενικά": "⚪ ", "Προπτυχιακά": "🔴 ", "Μεταπτυχιακά": "🔵 ", "Διδακτορικά": "🟣 ",
-                  "CIVIS": "⚫ ", "Πρακτική Άσκηση": "🟠 ", "Νέες θέσεις εργασίας": "🟢 "}
-
-        if os.path.exists("data/old_list.json"):
+        if exists("data/old_list.json"):
             with open("data/old_list.json", "r") as file:
-                self.old_list = json.loads(file.read())
+                self.old_list = loads(file.read())
         else:
-            self.old_list = self.get_an_list()
+            (result, self.old_list) = self.get_an_list()
             with open("data/old_list.json", "w") as file:
-                json.dump(self.old_list, file, indent=4)
+                dump(self.old_list, file, indent=4)
 
-        if os.path.exists("data/already_sent.json"):
+        if exists("data/already_sent.json"):
             with open("data/already_sent.json", "r") as file:
-                self.already_sent = json.loads(file.read())
+                self.already_sent = loads(file.read())
         else:
             self.already_sent = []
             with open("data/already_sent.json", "w") as file:
-                json.dump(self.already_sent.json, file, indent=4)
-
-    def get_an_list(self):
-        # Not using the rss feed because it doesn't return the categories for each announcement.
-        response = requests.get("https://www.di.uoa.gr/announcements")
-
-        if response.status_code == 400:
-            return None
-
-        announcements = {"sticky": [], "normal": []}
+                dump(self.already_sent, file, indent=4)
         
-        html = response.text
-        soup = bs(html, features="html.parser")
-        announcement_table = soup.find("tbody").find_all("tr")
-        for announcement in announcement_table:    
-            a = announcement.find("a")
-            link = f"https://www.di.uoa.gr{a['href']}"
-            title = a.contents[0]
+        self.send_new_annoucements.start()
 
+    def get_an_list(self) -> tuple:
+        """ Returns the items in the rss feed """
+        response = get("https://www.di.uoa.gr/announcements")
+        if response.status_code == 400:
+            return (1, [])
 
-            categories = announcement.find_all("i")
-            categories = [' '.join(str(n.next).split()) for n in categories]
-
-            current = {"link": link, "title": title, "tags": categories}
-            
-            if announcement.find("i", {"class": "fa fa-thumbtack"}):
-                announcements["sticky"].append(current)
+        announcements_feed = parse("http://www.di.uoa.gr/rss.xml")
+        
+        announcements = []
+        previous_links = []
+        for i in announcements_feed["entries"]:
+            title = i["title"]
+            link = i["link"]
+            if link in previous_links:
+                continue
             else:
-                announcements["normal"].append(current)
+                previous_links.append(link)
+            dt = datetime.fromtimestamp(mktime(i["published_parsed"])).strftime("%A, %d/%m/%Y, %H:%M")
 
-        return announcements
+            cur = {"link": link, "title": title, "dt": dt, "tags": []}
+            announcements.append(cur)
 
-    def check_for_new(self):
-        new_list = self.get_an_list()
-        if new_list == None:
-            return None
-        temp = {"sticky": new_list["sticky"].copy(), "normal": new_list["normal"].copy()}
+        return (0, announcements)
+
+    def check_for_new(self) -> tuple:
+        """ Checks the for any differences in the beginning of new list and the old list. """
+        (result, announcements_list) = self.get_an_list()
+
+        if result == 1:
+            return (1, [])
 
         new_announcements = []
-        if len(new_list["sticky"]):
-            # Checking for new sticky announcements
-            new_link = new_list["sticky"][0]["link"]
-            old_link = self.old_list["sticky"][0]["link"]
-            while new_link != old_link:
-                new = new_list["sticky"].pop(0)
-                if new["link"] in self.already_sent:
-                    break
-                new_announcements.append(new)
-                self.already_sent.append(new["link"])
-
-                if not len(new_list["sticky"]):
-                    break
-                new_link = new_list["sticky"][0]["link"]
-
-        # Continuing with the non-sticky announcements
-        new_link = new_list["normal"][0]["link"]
-        old_link = self.old_list["normal"][0]["link"]
-        new_announcements = []
-        while new_link != old_link:
-            new = new_list["normal"].pop(0)
-            if new["link"] in self.already_sent:
+        for announcement in announcements_list:
+            if announcement["link"] == self.old_list[0]:
                 break
-            new_announcements.append(new)
-            self.already_sent.append(new["link"])
-
-            if not len(new_list["normal"]):
-                break
-            new_link = new_list["normal"][0]["link"]
-
-        self.old_list = temp
-        with open("data/old_list.json", "w") as f:
-            json.dump(self.old_list, f, indent=4)
+            else:
+                announcement["tags"] = self.get_tags(announcement["link"])
+                if announcement["link"] not in self.already_sent:
+                    new_announcements.append(announcement)
+                    self.already_sent.append(announcement["link"])
 
         if len(new_announcements):
-            with open("data/already_sent.json", "w") as f:
-                json.dump(self.already_sent, f, indent=4)
-            return new_announcements[::-1]  # Reversing the list so the announcements are in the correct order
+            self.old_list = announcements_list
+            with open("data/old_list.json", "w") as file:
+                dump(self.old_list, file, indent=4)
+
+            with open("data/already_sent.json", "w") as file:
+                dump(self.already_sent, file, indent=4)
+            return (0, new_announcements)
         else:
-            return None
+            return (1, [])
 
-    def get_all_announcements(self):
-        sticky_links = []
-        normal_links = []
-        for i in self.old_list["sticky"]:
-            sticky_links.append(i["link"])
+    def get_tags(self, link) -> list:
+        """ 
+        The rss feed doesn't have the announcement tags, so when a there's a new announcement this 
+        function is called with the link and gathers the tags from that announcement's page.
+        """
+        response = get(link)
+        soup = bs(response.text, features="html.parser")
+        tags_table = soup.find("div", {"class": "field__items"})
+        
+        tags = [i.text for i in tags_table.children if i != "\n"]
+        return tags
 
-        for i in self.old_list["normal"]:
-            normal_links.append(i["link"])
-
-        old = {"sticky": sticky_links, "normal": normal_links}
-        return old
+    def format_tags(self, tags) -> str:
+        """ Returns a string with the tags and their colour """
+        ptags = ""
+        for tag in tags:
+            if tag in self.tag_colours.keys():
+                colour = self.tag_colours[tag]
+            else:
+                colour = "🟡 "
+            
+            ptags += f"\n{colour} {tag}"
+        return ptags
 
     @tasks.loop(seconds=15.0)
     async def send_new_annoucements(self):
-        announcements = self.check_for_new()
-        if announcements:
-            date = datetime.datetime.now().strftime("%A, %d/%m/%Y, %H:%M")
-            self.logger.info("Found new announcements, sending.")
-            start = time.time()
+        (result, new_announcements) = self.check_for_new()
+        if result == 0:
+            start = time()
             channels = self.bot.data.get_announcement_channels()
-            for i in announcements:
-                link = i["link"]
-                title = i["title"]
-                categories = ""
-                length = len(i["tags"]) - 1
-                for tag in i["tags"]:                    
-                    if i["tags"].index(tag) != length:
-                        tag = tag[:-1]
-
-                    try:
-                        color = self.category_colors[tag]
-                    except:
-                        color = "🟡 "
-                    categories += f"\n{color} {tag}"
+            for announcement in new_announcements:
+                link = announcement["link"]
+                title = announcement["title"]
+                tags = self.format_tags(announcement["tags"])
                 
                 embed = discord.Embed(
                     title="New Announcement!", 
                     url=link,
-                    description=f"{title}\n\n{categories}",
+                    description=f"{title}\n\n{tags}",
                     color=discord.Color.blue()
                 )
                 embed.set_thumbnail(url="https://pbs.twimg.com/profile_images/1255901921896009729/xKsBUtgN.jpg")
-                embed.set_footer(text=date)
+                embed.set_footer(text=announcement["dt"])
                 for ch in channels:
                     current = self.bot.get_channel(int(ch))
                     await current.send(embed=embed)
-            end = time.time()
+            end = time()
             total = end - start
-            total_formatted = str(datetime.timedelta(seconds=int(total)))
-            self.logger.info(f"Successfully sent new announcements to {len(channels)} servers. Total time: {total_formatted}")
-        
-    @tasks.loop(minutes=30.0)
-    async def remove_deleted_announcements(self):
-        ids = self.get_all_announcements()
-        channels = self.bot.data.get_announcement_channels()
-        for ch in channels:
-            current = self.bot.get_channel(int(ch))
-            messages = await current.history(limit=15).flatten()
-            for message in messages:
-                try:
-                    cur_embed = message.embeds[0]
-                    if cur_embed.url not in ids["sticky"]:
-                        # If the url is in the sticky, there's no reason to check if it's in the normal. 
-                        if cur_embed.url not in ids["normal"]:
-                            # If the url is neither in the sticky nor the normal, then it's removed.
-                            self.logger.info(f"Found deleted announcement, removing from channel {ch}.")
-                            await message.delete()
-                except:
-                    continue
+            total_formatted = str(timedelta(seconds=int(total)))
+            self.bot.logger.info(f"Successfully sent new announcements to {len(channels)} servers. Total time: {total_formatted}")

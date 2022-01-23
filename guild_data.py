@@ -1,13 +1,12 @@
-import json, logging
 from discord.ext import commands
+from json import loads, dump
 
 class GuildData:
-    def __init__(self, bot: commands.Bot, logger: logging):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.logger = logger
         try:
             with open("data/guilds.json", "r") as file:
-                self.data = json.loads(file.read())
+                self.data = loads(file.read())
                 self.backup = self.data.copy()
         except IOError:
             return None
@@ -69,14 +68,14 @@ class GuildData:
     def write_to_json(self):
         try:
             with open("data/guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
+                dump(self.data, f, indent=4)
             self.backup = self.data.copy()
             return 1
         except:
-            self.logger.error("Failed to make changes to json file. Reverting to old.")
+            self.bot.logger.error("Failed to make changes to json file. Reverting to old.")
             self.data = self.backup.copy()
             with open("data/guilds.json", "w") as f:     
-                json.dump(self.data, f, indent=4)
+                dump(self.data, f, indent=4)
             return 0
 
     async def check_guilds(self):
@@ -86,9 +85,9 @@ class GuildData:
         joined = self.bot.guilds
         try:
             with open("data/guilds.json", "r") as f:
-                cur_data = json.loads(f.read())
+                cur_data = loads(f.read())
         except IOError:
-            self.logger.critical("data/guilds.json doesn't exist.")
+            self.bot.logger.critical("data/guilds.json doesn't exist.")
             return 0
 
         stored = list(cur_data.keys())
@@ -109,12 +108,12 @@ class GuildData:
                 await channel.send("You can move this channel to any category you want. If you delete it, you will have to reconfigure the bot with //config")
                 ret = self.bot.data.add_guild(str(guild.id), str(channel.id))
                 if ret:
-                    self.logger.info(f"Guild {guild.id}: Added to json file.")
+                    self.bot.logger.info(f"Guild {guild.id}: Added to json file.")
                 else:
-                    self.logger.warning(f"Guild {guild.id}: Failed to add to json file.")
+                    self.bot.logger.warning(f"Guild {guild.id}: Failed to add to json file.")
 
         with open("data/guilds.json", "r") as f:
-            cur_data = json.loads(f.read())
+            cur_data = loads(f.read())
         
         stored = list(cur_data.keys())
 
@@ -125,6 +124,6 @@ class GuildData:
             if i not in joined:
                 ret = self.bot.data.remove_guild(str(i))
                 if ret:
-                    self.logger.info(f"Guild {i}: Added to json file.")
+                    self.bot.logger.info(f"Guild {i}: Added to json file.")
                 else:
-                    self.logger.warning(f"Guild {i}: Failed to add to json file.")
+                    self.bot.logger.warning(f"Guild {i}: Failed to add to json file.")
