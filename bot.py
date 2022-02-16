@@ -85,11 +85,9 @@ class Main(commands.Cog):
                     )
         embed.add_field(name="//config announcements <#channel_name>.",
                         value="Change to which channel the bot sends the new announcements.", inline=False)
-        embed.add_field(name="//config permissions add/remove <@role_name>.", 
-                        value="Add / Remove roles that will be allowed to configure the bot."
+        embed.add_field(name="//config permissions/", 
+                        value="View permissions settings for the bot."
                                 "You have to tag the role to add it.", inline=False)
-        embed.add_field(name="//config permissions list.",
-                        value="Get a list with all the roles that are allowed to configure the bot.", inline=False)
 
         await ctx.send(embed=embed)
 
@@ -126,10 +124,12 @@ class Main(commands.Cog):
                             color=discord.Color.blue()
                         )
 
-        embed.add_field(name="add <@role>.", 
+        embed.add_field(name="//config permissions add <@role>.", 
                         value="Adds the role to the control list.", inline=False)
-        embed.add_field(name="remove <@role>.",
+        embed.add_field(name="//config permissions remove <@role>.",
                         value="Removes the role from the control list.", inline=False)
+        embed.add_field(name="//config permissions list.",
+                        value="Lists roles that are allowd to change bot settings.", inline=False)
         
         await ctx.send(embed=embed)
 

@@ -50,7 +50,7 @@ cd DitAnnouncements
 
 3. Create and start the container:
 
-`docker run -d -v $(pwd)/data:/data -v $(pwd)/logs:/logs --name dit_announcements dit_announcements`
+`docker run -d -v $(pwd)/data:/data -v $(pwd)/logs:/logs --restart unless-stopped --name dit_announcements dit_announcements`
 
 4. A new directory named "data" is now created. Paste your api key in the config.txt file inside that directory.
 

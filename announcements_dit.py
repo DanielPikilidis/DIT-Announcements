@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands, tasks
-from datetime import datetime, timedelta
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup as bs
 from feedparser import parse
 from time import mktime, time
@@ -59,15 +60,17 @@ class DitAnnouncements(commands.Cog):
                 continue
             else:
                 previous_links.append(link)
-            dt = datetime.fromtimestamp(mktime(i["published_parsed"])).strftime("%A, %d/%m/%Y, %H:%M")
+            utc_unaware = datetime.fromtimestamp(mktime(i["published_parsed"]))
+            utc_aware = utc_unaware.replace(tzinfo=ZoneInfo('UTC'))
+            local_aware = utc_aware.astimezone(ZoneInfo('Europe/Athens')).strftime("%A, %d/%m/%Y, %H:%M")
 
-            cur = {"link": link, "title": title, "dt": dt, "tags": []}
+            cur = {"link": link, "title": title, "dt": local_aware, "tags": []}
             announcements.append(cur)
 
         return (0, announcements)
 
     def check_for_new(self) -> tuple:
-        """ Checks the for any differences in the beginning of new list and the old list. """
+        """ Checks for any differences in the beginning of new list and the old list. """
         (result, announcements_list) = self.get_an_list()
 
         if result == 1:
@@ -122,7 +125,6 @@ class DitAnnouncements(commands.Cog):
     async def send_new_annoucements(self):
         (result, new_announcements) = self.check_for_new()
         if result == 0:
-            start = time()
             channels = self.bot.data.get_announcement_channels()
             for announcement in new_announcements:
                 link = announcement["link"]
@@ -140,7 +142,4 @@ class DitAnnouncements(commands.Cog):
                 for ch in channels:
                     current = self.bot.get_channel(int(ch))
                     await current.send(embed=embed)
-            end = time()
-            total = end - start
-            total_formatted = str(timedelta(seconds=int(total)))
-            self.bot.logger.info(f"Successfully sent new announcements to {len(channels)} servers. Total time: {total_formatted}")
+            self.bot.logger.info(f"Successfully sent new announcements to {len(channels)} servers.")
