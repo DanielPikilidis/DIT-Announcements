@@ -34,7 +34,7 @@ class Main(commands.Cog):
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
 
     @commands.Cog.listener()
-    async def on_guild_join(self, guild):
+    async def on_guild_join(self, guild: discord.Guild):
         channel = await guild.create_text_channel("announcements")
         await channel.send("You can move this channel to any category you want. If you delete it, you will have to"
                         "reconfigure the bot with //config.\n"
@@ -50,7 +50,7 @@ class Main(commands.Cog):
             bot.logger.warning(f"Guild {guild.id}: Failed to add to json file")
 
     @commands.Cog.listener()
-    async def on_guild_remove(self, guild):
+    async def on_guild_remove(self, guild: discord.Guild):
         ret = bot.data.remove_guild(str(guild.id))
         if ret:
             bot.logger.info(f"Guild {guild.id}: Removed from json file.")
@@ -254,9 +254,9 @@ if __name__ == "__main__":
     if not exists("data"):
         mkdir("data")
 
-    if not exists("data/guilds.json"):
-        with open("data/guilds.json", "a+") as file:
-            json.dump({}, file, indent=4)
+    if not exists("data/data.json"):
+        with open("data/data.json", "a+") as file:
+            json.dump({"last_update": 0, "guilds": {}}, file, indent=4)
 
     if exists("data/config.txt"):
         with open("data/config.txt", "r") as file:
