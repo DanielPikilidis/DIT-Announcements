@@ -44,13 +44,19 @@ class DitAnnouncements(commands.Cog):
             self.logger.warn(f"{self.rss_feed} is not working, Is it up?")
             return (1, [])
 
+        timestamp = self.data["last_update"]
+        self.data["last_update"] = mktime(datetime.utcnow().timetuple())
+        with open("data/data.json", "w") as file:
+            dump(self.data, file, indent=4)
+
         feed = parse(self.rss_feed)
 
         new_announcements = []
         previous_urls = [] # Sometimes this rss feed has duplicate items, this filters them out
         for entry in feed.entries:
             entry_time = mktime(entry.published_parsed)
-            if entry_time <= self.data["last_update"]:
+            print(entry_time, timestamp)
+            if entry_time <= timestamp:
                 break
 
             title = entry.title
@@ -67,9 +73,6 @@ class DitAnnouncements(commands.Cog):
                 Announcement(title, url, local_time, self.get_tags(url))
             )
 
-        self.data["last_update"] = mktime(datetime.utcnow().timetuple())
-        with open("data/data.json", "w") as file:
-            dump(self.data, file, indent=4)
 
         if len(new_announcements):
             return (0, new_announcements)
