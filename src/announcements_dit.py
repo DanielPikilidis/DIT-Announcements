@@ -4,7 +4,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup as bs
 from feedparser import parse
-from time import mktime
+from time import time as current_time
+from calendar import timegm
 from json import dump, loads
 from requests import get, ReadTimeout
 from dataclasses import dataclass
@@ -47,14 +48,14 @@ class DitAnnouncements(commands.Cog):
             return (1, [])
 
         old_timestamp = self.timestamp
-        timestamp = mktime(datetime.utcnow().timetuple())
+        self.timestamp = int(current_time())
 
         feed = parse(self.rss_feed)
 
         new_announcements = []
         previous_urls = [] # Sometimes this rss feed has duplicate items, this filters them out
         for entry in feed.entries:
-            entry_time = mktime(entry.published_parsed)
+            entry_time = timegm(entry.published_parsed)     # mktime converts to wrong timezone for some reason
             self.logger.info(f"{entry_time}, {old_timestamp}")  # For debugging
             if entry_time <= old_timestamp:
                 break
@@ -73,7 +74,7 @@ class DitAnnouncements(commands.Cog):
                 Announcement(title, url, local_time, self.get_tags(url))
             )
         
-        self.data["last_update"] = timestamp
+        self.data["last_update"] = self.timestamp
         with open("data/data.json", "w") as file:
             dump(self.data, file, indent=4)
 

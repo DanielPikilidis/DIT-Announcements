@@ -7,6 +7,4 @@ ADD requirements.txt .
 RUN python3 -m pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-WORKDIR /src
-
-CMD ["python3", "bot.py"]
+CMD ["python3", "src/bot.py"]
