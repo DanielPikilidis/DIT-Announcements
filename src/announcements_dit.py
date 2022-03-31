@@ -35,6 +35,8 @@ class DitAnnouncements(commands.Cog):
         with open("data/data.json", "r") as file:
             self.data = loads(file.read())
 
+        self.timestamp = self.data["last_update"]
+
         self.send_new_annoucements.start()
 
     async def get_new_announcements(self) -> tuple:
@@ -44,10 +46,8 @@ class DitAnnouncements(commands.Cog):
             self.logger.warn(f"{self.rss_feed} is not working, Is it up?")
             return (1, [])
 
-        timestamp = self.data["last_update"]
-        self.data["last_update"] = mktime(datetime.utcnow().timetuple())
-        with open("data/data.json", "w") as file:
-            dump(self.data, file, indent=4)
+        old_timestamp = self.timestamp
+        timestamp = mktime(datetime.utcnow().timetuple())
 
         feed = parse(self.rss_feed)
 
@@ -55,8 +55,8 @@ class DitAnnouncements(commands.Cog):
         previous_urls = [] # Sometimes this rss feed has duplicate items, this filters them out
         for entry in feed.entries:
             entry_time = mktime(entry.published_parsed)
-            print(entry_time, timestamp)
-            if entry_time <= timestamp:
+            self.logger.info(f"{entry_time}, {old_timestamp}")  # For debugging
+            if entry_time <= old_timestamp:
                 break
 
             title = entry.title
@@ -72,10 +72,13 @@ class DitAnnouncements(commands.Cog):
             new_announcements.append(
                 Announcement(title, url, local_time, self.get_tags(url))
             )
-
+        
+        self.data["last_update"] = timestamp
+        with open("data/data.json", "w") as file:
+            dump(self.data, file, indent=4)
 
         if len(new_announcements):
-            return (0, new_announcements)
+            return (0, new_announcements[::-1])
         else:
             return (1, [])
 
