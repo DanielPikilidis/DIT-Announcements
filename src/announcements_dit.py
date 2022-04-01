@@ -71,7 +71,7 @@ class DitAnnouncements(commands.Cog):
             )
         
         if len(new_announcements):
-            self.data["last_update"] = timegm(feed.entries[0].published_parsed)
+            self.data["last_update"] = self.timestamp = timegm(feed.entries[0].published_parsed)
             with open("data/data.json", "w") as file:
                 dump(self.data, file, indent=4)
             return (0, new_announcements[::-1])
