@@ -1,5 +1,5 @@
 beautifulsoup4>=4.11.1
-py-cord>=2.0.0b7
+py-cord==1.7.3
 feedparser>=6.0.8
 requests>=2.27.0
 dataclasses
