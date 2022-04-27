@@ -258,11 +258,12 @@ if __name__ == "__main__":
         with open("data/data.json", "a+") as file:
             json.dump({"last_update": 0, "guilds": {}}, file, indent=4)
 
-    if exists("data/config.txt"):
-        with open("data/config.txt", "r") as file:
-            bot_key = file.read()
+    if exists("data/config.json"):
+        with open("data/config.json", "r") as file:
+            bot_key = json.loads(file.read())['discord-key']
         bot.run(bot_key)
     else:
-        open("data/config.txt", "w").close()
-        print("Paste your key in config.txt file in data/")
+        with open("data/config.json", "a+") as file:
+            json.dump({"discord-key": ""}, file, indent=4)
+        print("Paste your key in config.json file in data/")
         
