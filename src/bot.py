@@ -85,9 +85,8 @@ class Main(commands.Cog):
                     )
         embed.add_field(name="//config announcements <#channel_name>.",
                         value="Change to which channel the bot sends the new announcements.", inline=False)
-        embed.add_field(name="//config permissions/", 
-                        value="View permissions settings for the bot."
-                                "You have to tag the role to add it.", inline=False)
+        embed.add_field(name="//config permissions", 
+                        value="List available commands for permission settings.", inline=False)
 
         await ctx.send(embed=embed)
 
@@ -207,17 +206,17 @@ class Main(commands.Cog):
     ################# ERROR HANDLING #################
 
     @announcements.error
-    async def announcements_error(ctx: commands.Context, error):
+    async def announcements_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Missing channel parameter.")
 
     @add_control.error
-    async def add_control_error(ctx: commands.Context, error):
+    async def add_control_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Missing role parameter.")
 
     @remove_control.error
-    async def remove_control_error(ctx: commands.Context, error):
+    async def remove_control_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send("Missing role parameter.")
 
