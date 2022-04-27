@@ -48,6 +48,9 @@ class DitAnnouncements(commands.Cog):
 
         feed = parse(self.rss_feed)
 
+        if self.timestamp == 0:  # First time running the bot
+            self.data["last_update"] = self.timestamp = timegm(feed.entries[0].published_parsed)
+
         new_announcements = []
         previous_urls = [] # Sometimes this rss feed has duplicate items, this filters them out
         for entry in feed.entries:
