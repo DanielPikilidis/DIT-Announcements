@@ -4,7 +4,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from bs4 import BeautifulSoup as bs
 from feedparser import parse
-from time import time as current_time
 from calendar import timegm
 from json import dump, loads
 from requests import get, ReadTimeout
