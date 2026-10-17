@@ -8,6 +8,10 @@ from requests import get, RequestException
 from dataclasses import dataclass
 from os import environ
 import data_store
+from categories import CATEGORY_COLOURS, CATEGORY_NAMES, emoji_name
+from pathlib import Path
+
+EMOJI_DIR = Path(__file__).resolve().parent.parent / "assets" / "category_emojis"
 
 @dataclass
 class Announcement:
@@ -22,7 +26,8 @@ class DitAnnouncements(commands.Cog):
         self.bot = bot
         self.logger: logging = bot.logger
         self.rss_feed = environ.get("DIT_RSS_FEED", "http://www.di.uoa.gr/rss.xml")
-        # Keyed by taxonomy term ID, so renamed terms keep their colour
+        # Keyed by taxonomy term ID, so renamed terms keep their colour.
+        # Fallback when the site colour emojis aren't available.
         self.tag_colours = {
             "171": "⚪ ",   # Γενικά
             "56": "🔴 ",    # Προπτυχιακά
@@ -32,45 +37,43 @@ class DitAnnouncements(commands.Cog):
             "59": "🟠 ",    # Πρακτική Άσκηση
             "131": "🟢 "    # Νέες θέσεις εργασίας
         }
-        # Same colours as the website (dit_theme/css/components/categories.css)
-        self.category_colours = {
-            "56": 0x730071,     # Προπτυχιακά
-            "57": 0xB7AAFF,     # Μεταπτυχιακά
-            "58": 0x98CE00,     # Υποτροφίες Προπτυχιακών
-            "59": 0xF5B700,     # Πρακτική Άσκηση
-            "60": 0xF0A6CA,     # Διδακτορικά
-            "61": 0xF71735,     # Προκηρύξεις Μεταπτυχιακών
-            "62": 0xDC0073,     # Προκηρύξεις Διδακτορικών
-            "131": 0x01FFFF,    # Νέες θέσεις εργασίας
-            "132": 0x98CE00,    # Υποτροφίες Μεταπτυχιακών
-            "133": 0x98CE00,    # Υποτροφίες Διδακτορικών
-            "171": 0x0190D6,    # Γενικά
-            "182": 0xEE7727,    # Προκηρύξεις Μελών ΔΕΠ
-            "193": 0x6B9080,    # Erasmus+
-            "210": 0x3A0CA3,    # ΠΜΣ Πληροφορική
-            "211": 0x4361EE,    # ΠΜΣ Μηχανική Υπολογιστών, Τηλεπικοινωνιών και Δικτύων
-            "212": 0xFF97B7,    # ΠΜΣ Τεχνολογίες Πληροφορικής και Επικοινωνιών
-            "213": 0xA6808C     # ΔΠΜΣ Γλωσσική Τεχνολογία
-        }
-        # Fallback for categories without a term ID in the feed
-        self.category_names = {
-            "Γενικά": "171", "Προπτυχιακά": "56", "Μεταπτυχιακά": "57", "Υποτροφίες Προπτυχιακών": "58",
-            "Πρακτική Άσκηση": "59", "Διδακτορικά": "60", "Προκηρύξεις Μεταπτυχιακών": "61",
-            "Προκηρύξεις Διδακτορικών": "62", "Νέες θέσεις εργασίας": "131",
-            "Υποτροφίες Μεταπτυχιακών": "132", "Υποτροφίες Διδακτορικών": "133",
-            "Προκηρύξεις Μελών ΔΕΠ": "182", "Erasmus+": "193", "ΠΜΣ Πληροφορική": "210",
-            "ΠΜΣ Μηχανική Υπολογιστών, Τηλεπικοινωνιών και Δικτύων": "211",
-            "ΠΜΣ Τεχνολογίες Πληροφορικής και Επικοινωνιών": "212",
-            "ΔΠΜΣ Γλωσσική Τεχνολογία": "213", "CIVIS": "215"
-        }
-
         # Only this cog's keys, "guilds" belongs to GuildData
         data = data_store.read()
         self.data = {key: data[key] for key in ("last_update", "seen") if key in data}
 
         self.timestamp = self.data["last_update"]
 
+        # term ID -> "<:dit_cat_xxxxxx:id> ", filled in by load_emojis()
+        self.tag_emojis = {}
+
         self.send_new_annoucements.start()
+
+    async def load_emojis(self):
+        """
+        Makes sure the bot has an application emoji for every site colour (uploading missing ones
+        from assets/category_emojis) and caches them per term ID. On any failure the tags just
+        keep using the plain circle emojis, it never stops the announcements.
+        """
+        try:
+            existing = {emoji.name: emoji for emoji in await self.bot.fetch_application_emojis()}
+        except Exception:
+            self.logger.warning("Couldn't list the application emojis, using the default circles.", exc_info=True)
+            return
+
+        for colour in sorted(set(CATEGORY_COLOURS.values())):
+            name = emoji_name(colour)
+            emoji = existing.get(name)
+            if emoji is None:
+                try:
+                    emoji = await self.bot.create_application_emoji(name=name, image=(EMOJI_DIR / f"{name}.png").read_bytes())
+                    self.logger.info(f"Uploaded application emoji {name}.")
+                except Exception:
+                    self.logger.warning(f"Couldn't upload application emoji {name}, using the default circle.", exc_info=True)
+                    continue
+
+            for term_id, term_colour in CATEGORY_COLOURS.items():
+                if term_colour == colour:
+                    self.tag_emojis[term_id] = f"{emoji} "
 
     async def get_new_announcements(self) -> tuple:
         try:
@@ -138,19 +141,19 @@ class DitAnnouncements(commands.Cog):
         """ The term ID is the last path segment of the <category domain=".../taxonomy/term/ID"> """
         if tag.get("scheme"):
             return tag.scheme.rstrip("/").rsplit("/", 1)[-1]
-        return self.category_names.get(tag.term)
+        return CATEGORY_NAMES.get(tag.term)
 
     def format_tags(self, tags) -> str:
         """ Returns a string with the tags and their colour """
         ptags = ""
         for (term_id, name) in tags:
-            colour = self.tag_colours.get(term_id, "🟡 ")
+            colour = self.tag_emojis.get(term_id) or self.tag_colours.get(term_id, "🟡 ")
             ptags += f"\n{colour} {name}"
         return ptags
 
     def embed_colour(self, tags) -> int:
         """ The site's colour of the first category, the same one it shows first """
-        return self.category_colours.get(tags[0][0], 0x36ABCC)
+        return CATEGORY_COLOURS.get(tags[0][0], 0x36ABCC)
 
     @tasks.loop(seconds=15.0)
     async def send_new_annoucements(self):
@@ -185,3 +188,7 @@ class DitAnnouncements(commands.Cog):
                 except discord.HTTPException:
                     self.logger.warning(f"Channel {ch}: Couldn't send the announcement.", exc_info=True)
             
+    @send_new_annoucements.before_loop
+    async def before_send_new_announcements(self):
+        await self.bot.wait_until_ready()
+        await self.load_emojis()
