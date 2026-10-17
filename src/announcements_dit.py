@@ -8,7 +8,7 @@ from requests import get, RequestException
 from dataclasses import dataclass
 from os import environ
 import data_store
-from categories import CATEGORY_COLOURS, CATEGORY_NAMES, emoji_name
+from categories import CATEGORY_COLOURS, CATEGORY_NAMES, EMOJI_PREFIX, emoji_name
 from pathlib import Path
 
 EMOJI_DIR = Path(__file__).resolve().parent.parent / "assets" / "category_emojis"
@@ -51,8 +51,8 @@ class DitAnnouncements(commands.Cog):
     async def load_emojis(self):
         """
         Makes sure the bot has an application emoji for every site colour (uploading missing ones
-        from assets/category_emojis) and caches them per term ID. On any failure the tags just
-        keep using the plain circle emojis, it never stops the announcements.
+        from assets/category_emojis), caches them per term ID and deletes its old dit_cat_ emojis.
+        On any failure the tags just keep using the plain circle emojis, it never stops the announcements.
         """
         try:
             existing = {emoji.name: emoji for emoji in await self.bot.fetch_application_emojis()}
@@ -74,6 +74,16 @@ class DitAnnouncements(commands.Cog):
             for term_id, term_colour in CATEGORY_COLOURS.items():
                 if term_colour == colour:
                     self.tag_emojis[term_id] = f"{emoji} "
+
+        # Remove emojis of older styles or colours, only the ones this bot manages
+        current = {emoji_name(colour) for colour in CATEGORY_COLOURS.values()}
+        for name, emoji in existing.items():
+            if name.startswith(EMOJI_PREFIX) and name not in current:
+                try:
+                    await emoji.delete()
+                    self.logger.info(f"Deleted old application emoji {name}.")
+                except Exception:
+                    self.logger.warning(f"Couldn't delete old application emoji {name}.", exc_info=True)
 
     async def get_new_announcements(self) -> tuple:
         try:

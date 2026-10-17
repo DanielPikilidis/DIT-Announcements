@@ -35,6 +35,16 @@ CATEGORY_NAMES = {
 }
 
 
+# Diameter of the emoji circle as a share of the 128x128 image. Discord shows emojis in a fixed
+# box, so the transparent padding is what makes the circle look smaller.
+CIRCLE_RATIO = 0.6
+
+# Every application emoji the bot manages starts with this. Old ones with it are deleted at startup.
+EMOJI_PREFIX = "dit_cat_"
+
+# Part of the emoji names, so changing CIRCLE_RATIO uploads new images instead of reusing the old ones
+EMOJI_STYLE = f"s{round(CIRCLE_RATIO * 100)}"
+
 def emoji_name(colour: int) -> str:
     """ Application emoji name for a colour. Categories with the same colour share one emoji. """
-    return f"dit_cat_{colour:06x}"
+    return f"{EMOJI_PREFIX}{EMOJI_STYLE}_{colour:06x}"

@@ -1,6 +1,7 @@
 """
-Generates assets/category_emojis/dit_cat_<colour>.png, one filled circle per website category colour.
-The bot uploads these as application emojis at startup. Run it again after changing src/categories.py:
+Generates assets/category_emojis/dit_cat_<style>_<colour>.png, one filled circle per website category
+colour, sized by CIRCLE_RATIO. The bot uploads these as application emojis at startup. Run it again after
+changing src/categories.py:
 
     pip install pillow
     python3 scripts/make_category_emojis.py
@@ -14,7 +15,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from categories import CATEGORY_COLOURS, emoji_name
+from categories import CATEGORY_COLOURS, CIRCLE_RATIO, emoji_name
 
 SIZE = 128      # Discord shows emojis at most 128x128
 SCALE = 4       # Draw bigger and scale down for smooth edges
@@ -22,7 +23,7 @@ SCALE = 4       # Draw bigger and scale down for smooth edges
 def make_circle(colour: int) -> Image.Image:
     big = Image.new("RGBA", (SIZE * SCALE, SIZE * SCALE), (0, 0, 0, 0))
     rgb = ((colour >> 16) & 0xFF, (colour >> 8) & 0xFF, colour & 0xFF, 255)
-    margin = 8 * SCALE
+    margin = round(SIZE * SCALE * (1 - CIRCLE_RATIO) / 2)
     ImageDraw.Draw(big).ellipse((margin, margin, SIZE * SCALE - margin, SIZE * SCALE - margin), fill=rgb)
     return big.resize((SIZE, SIZE), Image.LANCZOS)
 

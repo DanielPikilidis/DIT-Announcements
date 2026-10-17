@@ -96,7 +96,7 @@ With Docker, both directories are mounted from the host, so they survive contain
 Each category is shown with a round emoji in its website colour:
 
 - **Where the colours come from:** they are defined in `src/categories.py`, which mirrors the website's `categories.css`. Categories are matched by their taxonomy term ID from the feed, so renaming a category on the website does not change its colour.
-- **How the images are made:** `scripts/make_category_emojis.py` generates one PNG per colour into `assets/category_emojis/`. It needs Pillow, which is only required for this script, not to run the bot:
+- **How the images are made:** `scripts/make_category_emojis.py` generates one PNG per colour into `assets/category_emojis/`. The circle's size is set by `CIRCLE_RATIO` in `src/categories.py`. The script needs Pillow, which is only required for this script, not to run the bot:
 
   ```
   pip install pillow
@@ -104,9 +104,10 @@ Each category is shown with a round emoji in its website colour:
   ```
 
 - **How they reach Discord:** at startup, the bot uploads any of these images that are missing as application emojis of its Discord application. No manual setup is needed, and the same code works for any bot token.
+- **Old emojis are removed:** the emoji names include the circle size and the colour (for example `dit_cat_s60_3a0ca3`). At startup, the bot deletes its own application emojis that start with `dit_cat_` but are no longer in the current set, for example after a size or colour change.
 - **When something is missing:** if the emojis cannot be listed or uploaded, the bot falls back to standard circle emojis. Categories without a website colour keep a standard emoji too.
 
-After changing a colour in `src/categories.py`, run the script again and commit the new image. The bot uploads it on the next start.
+After changing a colour or `CIRCLE_RATIO` in `src/categories.py`, run the script again and commit the new images. On the next start, the bot uploads them and deletes the old ones.
 
 ## Upgrading from older versions
 
