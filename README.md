@@ -19,7 +19,8 @@ Configuration is read from environment variables, see `.env.example`:
 | `DISCORD_TOKEN` | Your Discord bot token |
 | `DIT_RSS_FEED` | The announcements feed (default: `http://www.di.uoa.gr/rss.xml`) |
 
-Older setups that keep the token in `data/config.json` (`"discord-key"`) still work when `DISCORD_TOKEN` is empty.
+**Upgrading an existing deployment:** the bot no longer reads `data/config.json`. Before upgrading, move the
+`"discord-key"` value from `data/config.json` into `.env` as `DISCORD_TOKEN`.
 
 ### Local:
 

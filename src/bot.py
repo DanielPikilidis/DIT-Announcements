@@ -259,6 +259,11 @@ def setup_logger() -> logging.Logger:
     return logger
 
 if __name__ == "__main__":
+    bot_key = getenv("DISCORD_TOKEN", "").strip()
+    if not bot_key:
+        exit("DISCORD_TOKEN is not set. Copy .env.example to .env and set DISCORD_TOKEN in it "
+             "(with Docker, pass it with docker run --env-file .env).")
+
     prefix = "//"
     bot = DitBot(command_prefix=prefix, help_command=None, intents=intents)
 
@@ -274,14 +279,5 @@ if __name__ == "__main__":
         with open("data/data.json", "a+") as file:
             json.dump({"last_update": 0, "guilds": {}}, file, indent=4)
 
-    bot_key = getenv("DISCORD_TOKEN", "").strip()
-    if not bot_key and exists("data/config.json"):     # Older setups keep the key in data/config.json
-        with open("data/config.json", "r") as file:
-            bot_key = json.loads(file.read()).get("discord-key", "").strip()
-
-    if bot_key:
-        bot.run(bot_key, log_handler=None)     # Logging is set up by setup_logger()
-    else:
-        print("No Discord bot token found. Copy .env.example to .env and set DISCORD_TOKEN in it "
-              "(or pass it with docker run --env-file .env).")
+    bot.run(bot_key, log_handler=None)     # Logging is set up by setup_logger()
         
