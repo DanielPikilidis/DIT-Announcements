@@ -10,7 +10,16 @@ The base of the bot can be used for sending other announcements / notifications 
 
 
 ## Installation
-For any method you will need an api key from discord.
+For any method you will need a bot token from the [Discord Developer Portal](https://discord.com/developers/applications).
+
+Configuration is read from environment variables, see `.env.example`:
+
+| Variable | Description |
+| --- | --- |
+| `DISCORD_TOKEN` | Your Discord bot token |
+| `DIT_RSS_FEED` | The announcements feed (default: `http://www.di.uoa.gr/rss.xml`) |
+
+Older setups that keep the token in `data/config.json` (`"discord-key"`) still work when `DISCORD_TOKEN` is empty.
 
 ### Local:
 
@@ -25,15 +34,13 @@ cd DitAnnouncements
 
 `pip3 install -r requirements.txt`
 
-3. Start the bot:
+3. Create your `.env` and paste your bot token in `DISCORD_TOKEN`:
 
-`python3 bot.py`
+`cp .env.example .env`
 
-4. A new directory named "data" is now created. Paste your api key in the config.txt file inside that directory.
+4. Start the bot:
 
-5. Start the bot again:
-
-`python3 bot.py`
+`python3 src/bot.py`
 
 ### Docker:
 
@@ -44,16 +51,14 @@ git clone https://github.com/DanielPikilidis/DIT-Announcements.git DitAnnounceme
 cd DitAnnouncements
 ```
 
-2. Build the Docker image:
+2. Create your `.env` and paste your bot token in `DISCORD_TOKEN`:
+
+`cp .env.example .env`
+
+3. Build the Docker image:
 
 `docker build -t dit_announcements .`
 
-3. Create and start the container:
+4. Create and start the container:
 
-`docker run -d -v $(pwd)/data:/data -v $(pwd)/logs:/logs --restart unless-stopped --name dit_announcements dit_announcements`
-
-4. A new directory named "data" is now created. Paste your api key in the config.txt file inside that directory.
-
-5. Restart the container: 
-
-`docker start dit_announcements`
+`docker run -d --env-file .env -v $(pwd)/data:/data -v $(pwd)/logs:/logs --restart unless-stopped --name dit_announcements dit_announcements`

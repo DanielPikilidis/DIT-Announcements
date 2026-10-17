@@ -1,7 +1,10 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import discord, json, logging
 from discord.ext import commands
 from logging.handlers import TimedRotatingFileHandler
-from os import mkdir
+from os import getenv, mkdir
 from os.path import exists
 from sys import stdout
 from announcements_dit import DitAnnouncements
@@ -257,12 +260,14 @@ if __name__ == "__main__":
         with open("data/data.json", "a+") as file:
             json.dump({"last_update": 0, "guilds": {}}, file, indent=4)
 
-    if exists("data/config.json"):
+    bot_key = getenv("DISCORD_TOKEN", "").strip()
+    if not bot_key and exists("data/config.json"):     # Older setups keep the key in data/config.json
         with open("data/config.json", "r") as file:
-            bot_key = json.loads(file.read())['discord-key']
+            bot_key = json.loads(file.read()).get("discord-key", "").strip()
+
+    if bot_key:
         bot.run(bot_key)
     else:
-        with open("data/config.json", "a+") as file:
-            json.dump({"discord-key": ""}, file, indent=4)
-        print("Paste your key in config.json file in data/")
+        print("No Discord bot token found. Copy .env.example to .env and set DISCORD_TOKEN in it "
+              "(or pass it with docker run --env-file .env).")
         
