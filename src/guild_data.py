@@ -1,3 +1,4 @@
+import discord
 from discord.ext import commands
 import data_store
 
@@ -19,6 +20,8 @@ class GuildData:
 
     def set_announcements_channel(self, guild, channel):
         def change(data):
+            # A guild where the bot couldn't create its channel isn't stored yet
+            data["guilds"].setdefault(guild, {"announcements": channel, "control": []})
             data["guilds"][guild]["announcements"] = channel
         return self.write_to_json(change)
 
@@ -41,7 +44,7 @@ class GuildData:
         return self.write_to_json(change)
 
     def get_control_list(self, guild):
-        return self.data["guilds"][guild]["control"]
+        return self.data["guilds"].get(guild, {}).get("control", [])
 
     def has_permission(self, ctx: commands.Context):
         if ctx.author == ctx.guild.owner:
@@ -101,7 +104,12 @@ class GuildData:
         for i in joined:
             if i not in stored:
                 guild = self.bot.get_guild(int(i))
-                channel = await guild.create_text_channel("announcements")
+                try:
+                    channel = await guild.create_text_channel("announcements")
+                except discord.Forbidden:
+                    self.bot.logger.warning(f"Guild {guild.id}: Missing the Manage Channels permission, couldn't create "
+                                            "the announcements channel. Set one with //config announcements <#channel>.")
+                    continue
                 await channel.send("You can move this channel to any category you want. If you delete it, you will have to reconfigure the bot with //config")
                 ret = self.bot.data.add_guild(str(guild.id), str(channel.id))
                 if ret:
@@ -123,3 +131,5 @@ class GuildData:
                     self.bot.logger.info(f"Guild {i}: Added to json file.")
                 else:
                     self.bot.logger.warning(f"Guild {i}: Failed to add to json file.")
+
+        return 1

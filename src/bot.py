@@ -6,12 +6,22 @@ from discord.ext import commands
 from logging.handlers import TimedRotatingFileHandler
 from os import getenv, mkdir
 from os.path import exists
-from sys import stdout
+from sys import exit, stdout
 from announcements_dit import DitAnnouncements
 from guild_data import GuildData
 
+# py-cord also installs a "discord" module, but it doesn't have application emojis
+if not hasattr(discord.Client, "create_application_emoji"):
+    exit("This bot needs discord.py (2.5 or newer). If py-cord is installed, run: "
+         "pip uninstall -y py-cord && pip install -r requirements.txt")
+
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True     # Prefix commands (//config) need the message content
+
+class DitBot(commands.Bot):
+    async def setup_hook(self):
+        await self.add_cog(Main(self))
 
 class Main(commands.Cog):
     def __init__(self, bot):
@@ -31,14 +41,20 @@ class Main(commands.Cog):
                 
                 bot.logger.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
 
-            bot.add_cog(DitAnnouncements(bot))
+            await bot.add_cog(DitAnnouncements(bot))
             self.started = True
             bot.logger.info("Bot logged in and ready")
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
-        channel = await guild.create_text_channel("announcements")
+        try:
+            channel = await guild.create_text_channel("announcements")
+        except discord.Forbidden:
+            bot.logger.warning(f"Guild {guild.id}: Missing the Manage Channels permission, couldn't create "
+                               "the announcements channel. Set one with //config announcements <#channel>.")
+            return
+
         await channel.send("You can move this channel to any category you want. If you delete it, you will have to"
                         "reconfigure the bot with //config.\n"
                         "By default everyone can config the bot. You should probably change that.\n"
@@ -244,7 +260,7 @@ def setup_logger() -> logging.Logger:
 
 if __name__ == "__main__":
     prefix = "//"
-    bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
+    bot = DitBot(command_prefix=prefix, help_command=None, intents=intents)
 
     if not exists("logs"):
         mkdir("logs")
@@ -253,8 +269,6 @@ if __name__ == "__main__":
         mkdir("data")
 
     bot.logger = setup_logger()
-
-    bot.add_cog(Main(bot))
 
     if not exists("data/data.json"):
         with open("data/data.json", "a+") as file:
@@ -266,7 +280,7 @@ if __name__ == "__main__":
             bot_key = json.loads(file.read()).get("discord-key", "").strip()
 
     if bot_key:
-        bot.run(bot_key)
+        bot.run(bot_key, log_handler=None)     # Logging is set up by setup_logger()
     else:
         print("No Discord bot token found. Copy .env.example to .env and set DISCORD_TOKEN in it "
               "(or pass it with docker run --env-file .env).")

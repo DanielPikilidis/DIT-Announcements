@@ -77,7 +77,7 @@ class DitAnnouncements(commands.Cog):
             response = get(self.rss_feed, timeout=4.0)
             response.raise_for_status()
         except RequestException:
-            self.logger.warn(f"{self.rss_feed} is not working, Is it up?")
+            self.logger.warning(f"{self.rss_feed} is not working, Is it up?")
             return (1, [])
 
         feed = parse(response.content)
@@ -175,6 +175,13 @@ class DitAnnouncements(commands.Cog):
             embed.set_thumbnail(url="https://pbs.twimg.com/profile_images/1255901921896009729/xKsBUtgN.jpg")
             embed.set_footer(text=announcement.date)
             for ch in channels:
+                # One deleted channel or missing permission must not stop the other guilds
                 current = self.bot.get_channel(int(ch))
-                await current.send(embed=embed)
+                if current is None:
+                    self.logger.warning(f"Channel {ch}: Not found, skipping. Was it deleted?")
+                    continue
+                try:
+                    await current.send(embed=embed)
+                except discord.HTTPException:
+                    self.logger.warning(f"Channel {ch}: Couldn't send the announcement.", exc_info=True)
             
