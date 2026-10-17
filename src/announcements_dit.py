@@ -2,12 +2,12 @@ import discord, logging
 from discord.ext import commands, tasks
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from bs4 import BeautifulSoup as bs
 from feedparser import parse
 from calendar import timegm
 from json import dump, loads
-from requests import get, ReadTimeout
+from requests import get, RequestException
 from dataclasses import dataclass
+from os import environ
 
 @dataclass
 class Announcement:
@@ -21,7 +21,7 @@ class DitAnnouncements(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger: logging = bot.logger
-        self.rss_feed = "http://www.di.uoa.gr/rss.xml"
+        self.rss_feed = environ.get("DIT_RSS_FEED", "http://www.di.uoa.gr/rss.xml")
         self.tag_colours = {
             "Γενικά": "⚪ ", 
             "Προπτυχιακά": "🔴 ", 
@@ -41,56 +41,62 @@ class DitAnnouncements(commands.Cog):
 
     async def get_new_announcements(self) -> tuple:
         try:
-            get(self.rss_feed, timeout=4.0)
-        except ReadTimeout:
+            response = get(self.rss_feed, timeout=4.0)
+            response.raise_for_status()
+        except RequestException:
             self.logger.warn(f"{self.rss_feed} is not working, Is it up?")
             return (1, [])
 
-        feed = parse(self.rss_feed)
+        feed = parse(response.content)
+
+        # The feed also contains events and highlights, only announcements have categories
+        entries = [entry for entry in feed.entries if entry.get("tags")]
+        if not entries:
+            return (1, [])
+
+        # Many announcements share the same timestamp (date only, midnight), so a timestamp
+        # alone can't tell which ones were already sent. Remember the guids instead.
+        if "seen" not in self.data:
+            self.data["seen"] = [
+                entry.id for entry in entries if timegm(entry.published_parsed) <= self.timestamp
+            ]
+        seen = set(self.data["seen"])
 
         if self.timestamp == 0:  # First time running the bot
-            self.data["last_update"] = self.timestamp = timegm(feed.entries[0].published_parsed)
+            self.data["last_update"] = self.timestamp = timegm(entries[0].published_parsed)
+            seen.update(entry.id for entry in entries)
 
         new_announcements = []
-        previous_urls = [] # Sometimes this rss feed has duplicate items, this filters them out
-        for entry in feed.entries:
-            entry_time = timegm(entry.published_parsed)     # mktime converts to wrong timezone for some reason
-            if entry_time <= self.timestamp:
-                break
-
-            title = entry.title
-            url = entry.link
-            if url in previous_urls:
+        for entry in entries:
+            if entry.id in seen:
                 continue
-            else:
-                previous_urls.append(url)
+            seen.add(entry.id)
 
+            entry_time = timegm(entry.published_parsed)     # mktime converts to wrong timezone for some reason
             utc_time = datetime.fromtimestamp(entry_time).replace(tzinfo=ZoneInfo('UTC'))
             local_time = utc_time.astimezone(ZoneInfo('Europe/Athens')).strftime("%A, %d/%m/%Y, %H:%M")
 
-            new_announcements.append(
-                Announcement(title, url, local_time, self.get_tags(url))
-            )
-        
+            tags = [tag.term for tag in entry.tags]
+            new_announcements.append(Announcement(entry.title, entry.link, local_time, tags))
+
+        # Newest first, capped so the list doesn't grow forever (the feed has 30 items)
+        current = [entry.id for entry in entries if entry.id in seen]
+        current += [guid for guid in self.data["seen"] if guid not in current]
+        current = current[:200]
+        changed = current != self.data["seen"]
+        self.data["seen"] = current
+
         if len(new_announcements):
-            self.data["last_update"] = self.timestamp = timegm(feed.entries[0].published_parsed)
+            self.data["last_update"] = self.timestamp = max(self.timestamp, timegm(entries[0].published_parsed))
+
+        if changed:
             with open("data/data.json", "w") as file:
                 dump(self.data, file, indent=4)
+
+        if len(new_announcements):
             return (0, new_announcements[::-1])
         else:
             return (1, [])
-
-    def get_tags(self, link) -> list:
-        """ 
-        The rss feed doesn't have the announcement tags, so when a there's a new announcement this 
-        function is called with the link and gathers the tags from that announcement's page.
-        """
-        response = get(link)
-        soup = bs(response.text, features="html.parser")
-        tags_table = soup.find("div", {"class": "field__items"})
-        
-        tags = [i.text for i in tags_table.children if i != "\n"]
-        return tags
 
     def format_tags(self, tags) -> str:
         """ Returns a string with the tags and their colour """
