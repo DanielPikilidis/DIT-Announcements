@@ -243,15 +243,15 @@ if __name__ == "__main__":
     prefix = "//"
     bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
 
-    bot.logger = setup_logger()
-
-    bot.add_cog(Main(bot))
-
     if not exists("logs"):
         mkdir("logs")
 
     if not exists("data"):
         mkdir("data")
+
+    bot.logger = setup_logger()
+
+    bot.add_cog(Main(bot))
 
     if not exists("data/data.json"):
         with open("data/data.json", "a+") as file:
