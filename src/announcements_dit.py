@@ -108,8 +108,8 @@ class DitAnnouncements(commands.Cog):
                 continue
             seen.add(entry.id)
 
-            entry_time = timegm(entry.published_parsed)     # mktime converts to wrong timezone for some reason
-            utc_time = datetime.fromtimestamp(entry_time).replace(tzinfo=ZoneInfo('UTC'))
+            # published_parsed is in UTC. Convert explicitly, so the host's timezone doesn't matter
+            utc_time = datetime.fromtimestamp(timegm(entry.published_parsed), tz=ZoneInfo('UTC'))
             local_time = utc_time.astimezone(ZoneInfo('Europe/Athens')).strftime("%A, %d/%m/%Y, %H:%M")
 
             tags = [(self.term_id(tag), tag.term) for tag in entry.tags]
