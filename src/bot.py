@@ -32,14 +32,14 @@ class Main(commands.Cog):
     async def on_ready(self):
         if not self.started:
             bot.data = GuildData(bot)
-            result = await bot.data.check_guilds()
-            if result:
-                bot.logger.info("Guild check completed.")
-            else:
-                with open("data/guilds.json", "w") as file:
-                    json.dump({}, file, indent=4)
-                
-                bot.logger.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
+            # A failed guild check must not keep the announcements from starting
+            try:
+                if await bot.data.check_guilds():
+                    bot.logger.info("Guild check completed.")
+                else:
+                    bot.logger.error("Guild check failed, the stored guilds may be out of date.")
+            except Exception:
+                bot.logger.exception("Guild check failed, the stored guilds may be out of date.")
 
             await bot.add_cog(DitAnnouncements(bot))
             self.started = True

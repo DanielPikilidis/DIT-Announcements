@@ -83,20 +83,15 @@ class GuildData:
         if not self.bot.data:
             return 0
 
-        joined = self.bot.guilds
+        # bot.guilds is a read-only view in discord.py, so build a new list
+        joined = sorted(str(guild.id) for guild in self.bot.guilds)
         try:
             cur_data = data_store.read()
         except IOError:
             self.bot.logger.critical("data/data.json doesn't exist.")
             return 0
 
-        stored = list(cur_data["guilds"].keys())
-
-        for i in range(len(joined)):
-            joined[i] = str(joined[i].id)
-
-        joined.sort()
-        stored.sort()
+        stored = sorted(cur_data["guilds"].keys())
 
         if joined == stored:
             return 1
@@ -119,7 +114,7 @@ class GuildData:
 
         cur_data = data_store.read()
 
-        stored = list(cur_data["guilds"].keys())
+        stored = sorted(cur_data["guilds"].keys())
 
         if joined == stored:
             return 1
@@ -128,8 +123,8 @@ class GuildData:
             if i not in joined:
                 ret = self.bot.data.remove_guild(str(i))
                 if ret:
-                    self.bot.logger.info(f"Guild {i}: Added to json file.")
+                    self.bot.logger.info(f"Guild {i}: Removed from json file.")
                 else:
-                    self.bot.logger.warning(f"Guild {i}: Failed to add to json file.")
+                    self.bot.logger.warning(f"Guild {i}: Failed to remove from json file.")
 
         return 1
