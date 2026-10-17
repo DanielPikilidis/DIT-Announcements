@@ -214,15 +214,27 @@ class Main(commands.Cog):
             await ctx.send("Everyone is allowed to control the bot.")
             return
 
-        s = ""
-        for i in control_list:
-            s += ctx.guild.get_role(int(i)).name
-            s += ", " 
+        # Deleted roles stay stored: dropping them could empty the list, which would let everyone control the bot
+        names = [role.name for role in map(ctx.guild.get_role, map(int, control_list)) if role is not None]
+        if not names:
+            await ctx.send("None of the roles in the control list exist anymore. Only the server owner can control the bot.")
+            return
 
-        s = s[:-2]
-        await ctx.send(s)
+        await ctx.send(", ".join(names))
 
     ################# ERROR HANDLING #################
+
+    async def cog_check(self, ctx: commands.Context):
+        # //config and all its subcommands need a server (a group's checks don't cover its subcommands)
+        if ctx.guild is None and (ctx.command.root_parent or ctx.command).name == "config":
+            raise commands.NoPrivateMessage()
+        return True
+
+    async def cog_command_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.NoPrivateMessage):
+            await ctx.send("This command only works in a server.")
+        elif not isinstance(error, commands.UserInputError):    # The handlers below answer bad input
+            bot.logger.error(f"Command {ctx.command} failed.", exc_info=error)
 
     @announcements.error
     async def announcements_error(self, ctx: commands.Context, error):

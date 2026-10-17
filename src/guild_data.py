@@ -47,7 +47,7 @@ class GuildData:
         return self.data["guilds"].get(guild, {}).get("control", [])
 
     def has_permission(self, ctx: commands.Context):
-        if ctx.author == ctx.guild.owner:
+        if ctx.author.id == ctx.guild.owner_id:     # ctx.guild.owner is None when the owner isn't cached
             return True
         else:
             author_roles = ctx.author.roles
