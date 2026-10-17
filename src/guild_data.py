@@ -1,15 +1,14 @@
 from discord.ext import commands
-from json import loads, dump
+import data_store
 
 class GuildData:
+    """ Owns the "guilds" key of data.json. Every read goes to the file, so it never works on a stale copy. """
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        try:
-            with open("data/data.json", "r") as file:
-                self.data = loads(file.read())
-                self.backup = self.data.copy()
-        except IOError:
-            return None
+
+    @property
+    def data(self) -> dict:
+        return data_store.read()
 
     def get_announcement_channels(self):
         arr = list(self.data["guilds"].values())
@@ -19,26 +18,27 @@ class GuildData:
         return arr
 
     def set_announcements_channel(self, guild, channel):
-        self.data["guilds"][guild]["announcements"] = channel
-        return self.write_to_json()
+        def change(data):
+            data["guilds"][guild]["announcements"] = channel
+        return self.write_to_json(change)
 
     def add_control(self, guild, role):
-        try:
-            self.data["guilds"][guild]["control"].remove(role)
-            self.data["guilds"][guild]["control"].append(role)
+        if role in self.get_control_list(guild):
             return 0
-        except:
-            pass
 
-        self.data["guilds"][guild]["control"].append(role)
-        return self.write_to_json()
+        def change(data):
+            if role not in data["guilds"][guild]["control"]:
+                data["guilds"][guild]["control"].append(role)
+        return self.write_to_json(change)
 
     def remove_control(self, guild, role):
-        try:
-            self.data["guilds"][guild]["control"].remove(role)
-        except:
+        if role not in self.get_control_list(guild):
             return 0
-        return self.write_to_json()
+
+        def change(data):
+            if role in data["guilds"][guild]["control"]:
+                data["guilds"][guild]["control"].remove(role)
+        return self.write_to_json(change)
 
     def get_control_list(self, guild):
         return self.data["guilds"][guild]["control"]
@@ -58,24 +58,22 @@ class GuildData:
                         return True
 
     def add_guild(self, guild, channel):
-        self.data["guilds"][guild] = {"announcements": channel, "control": []}
-        return self.write_to_json()
+        def change(data):
+            data["guilds"][guild] = {"announcements": channel, "control": []}
+        return self.write_to_json(change)
 
     def remove_guild(self, guild):
-        self.data["guilds"].pop(guild)
-        return self.write_to_json()
+        def change(data):
+            data["guilds"].pop(guild, None)
+        return self.write_to_json(change)
 
-    def write_to_json(self):
+    def write_to_json(self, change):
+        """ Applies change to the current data.json. The write is atomic, so on failure the file is unchanged. """
         try:
-            with open("data/data.json", "w") as f:     
-                dump(self.data, f, indent=4)
-            self.backup = self.data.copy()
+            data_store.update(change)
             return 1
         except:
-            self.bot.logger.error("Failed to make changes to json file. Reverting to old.")
-            self.data = self.backup.copy()
-            with open("data/data.json", "w") as f:     
-                dump(self.data, f, indent=4)
+            self.bot.logger.error("Failed to make changes to json file. Kept the old one.", exc_info=True)
             return 0
 
     async def check_guilds(self):
@@ -84,8 +82,7 @@ class GuildData:
 
         joined = self.bot.guilds
         try:
-            with open("data/data.json", "r") as f:
-                cur_data = loads(f.read())
+            cur_data = data_store.read()
         except IOError:
             self.bot.logger.critical("data/data.json doesn't exist.")
             return 0
@@ -112,9 +109,8 @@ class GuildData:
                 else:
                     self.bot.logger.warning(f"Guild {guild.id}: Failed to add to json file.")
 
-        with open("data/data.json", "r") as f:
-            cur_data = loads(f.read())
-        
+        cur_data = data_store.read()
+
         stored = list(cur_data["guilds"].keys())
 
         if joined == stored:

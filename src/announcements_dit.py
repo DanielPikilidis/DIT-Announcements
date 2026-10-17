@@ -4,10 +4,10 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from feedparser import parse
 from calendar import timegm
-from json import dump, loads
 from requests import get, RequestException
 from dataclasses import dataclass
 from os import environ
+import data_store
 
 @dataclass
 class Announcement:
@@ -64,8 +64,9 @@ class DitAnnouncements(commands.Cog):
             "ΔΠΜΣ Γλωσσική Τεχνολογία": "213", "CIVIS": "215"
         }
 
-        with open("data/data.json", "r") as file:
-            self.data = loads(file.read())
+        # Only this cog's keys, "guilds" belongs to GuildData
+        data = data_store.read()
+        self.data = {key: data[key] for key in ("last_update", "seen") if key in data}
 
         self.timestamp = self.data["last_update"]
 
@@ -122,8 +123,11 @@ class DitAnnouncements(commands.Cog):
             self.data["last_update"] = self.timestamp = max(self.timestamp, timegm(entries[0].published_parsed))
 
         if changed:
-            with open("data/data.json", "w") as file:
-                dump(self.data, file, indent=4)
+            state = {"last_update": self.data["last_update"], "seen": self.data["seen"]}
+            try:
+                data_store.update(lambda data: data.update(state))
+            except Exception:
+                self.logger.error("Failed to save the sent announcements to data.json.", exc_info=True)
 
         if len(new_announcements):
             return (0, new_announcements[::-1])
