@@ -1,6 +1,7 @@
 FROM python:3
 
 COPY src/* src/
+COPY assets/ assets/
 
 ADD requirements.txt .
 

@@ -1,14 +1,27 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import discord, json, logging
 from discord.ext import commands
 from logging.handlers import TimedRotatingFileHandler
-from os import mkdir
+from os import getenv, mkdir
 from os.path import exists
-from sys import stdout
+from sys import exit, stdout
 from announcements_dit import DitAnnouncements
 from guild_data import GuildData
 
+# py-cord also installs a "discord" module, but it doesn't have application emojis
+if not hasattr(discord.Client, "create_application_emoji"):
+    exit("This bot needs discord.py (2.5 or newer). If py-cord is installed, run: "
+         "pip uninstall -y py-cord && pip install -r requirements.txt")
+
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True     # Prefix commands (//config) need the message content
+
+class DitBot(commands.Bot):
+    async def setup_hook(self):
+        await self.add_cog(Main(self))
 
 class Main(commands.Cog):
     def __init__(self, bot):
@@ -19,23 +32,29 @@ class Main(commands.Cog):
     async def on_ready(self):
         if not self.started:
             bot.data = GuildData(bot)
-            result = await bot.data.check_guilds()
-            if result:
-                bot.logger.info("Guild check completed.")
-            else:
-                with open("data/guilds.json", "w") as file:
-                    json.dump({}, file, indent=4)
-                
-                bot.logger.critical("Recreating guilds.json. If the bot is in any guild, restart the bot.")
+            # A failed guild check must not keep the announcements from starting
+            try:
+                if await bot.data.check_guilds():
+                    bot.logger.info("Guild check completed.")
+                else:
+                    bot.logger.error("Guild check failed, the stored guilds may be out of date.")
+            except Exception:
+                bot.logger.exception("Guild check failed, the stored guilds may be out of date.")
 
-            bot.add_cog(DitAnnouncements(bot))
+            await bot.add_cog(DitAnnouncements(bot))
             self.started = True
             bot.logger.info("Bot logged in and ready")
         await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="//help"))
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
-        channel = await guild.create_text_channel("announcements")
+        try:
+            channel = await guild.create_text_channel("announcements")
+        except discord.Forbidden:
+            bot.logger.warning(f"Guild {guild.id}: Missing the Manage Channels permission, couldn't create "
+                               "the announcements channel. Set one with //config announcements <#channel>.")
+            return
+
         await channel.send("You can move this channel to any category you want. If you delete it, you will have to"
                         "reconfigure the bot with //config.\n"
                         "By default everyone can config the bot. You should probably change that.\n"
@@ -195,15 +214,27 @@ class Main(commands.Cog):
             await ctx.send("Everyone is allowed to control the bot.")
             return
 
-        s = ""
-        for i in control_list:
-            s += ctx.guild.get_role(int(i)).name
-            s += ", " 
+        # Deleted roles stay stored: dropping them could empty the list, which would let everyone control the bot
+        names = [role.name for role in map(ctx.guild.get_role, map(int, control_list)) if role is not None]
+        if not names:
+            await ctx.send("None of the roles in the control list exist anymore. Only the server owner can control the bot.")
+            return
 
-        s = s[:-2]
-        await ctx.send(s)
+        await ctx.send(", ".join(names))
 
     ################# ERROR HANDLING #################
+
+    async def cog_check(self, ctx: commands.Context):
+        # //config and all its subcommands need a server (a group's checks don't cover its subcommands)
+        if ctx.guild is None and (ctx.command.root_parent or ctx.command).name == "config":
+            raise commands.NoPrivateMessage()
+        return True
+
+    async def cog_command_error(self, ctx: commands.Context, error):
+        if isinstance(error, commands.NoPrivateMessage):
+            await ctx.send("This command only works in a server.")
+        elif not isinstance(error, commands.UserInputError):    # The handlers below answer bad input
+            bot.logger.error(f"Command {ctx.command} failed.", exc_info=error)
 
     @announcements.error
     async def announcements_error(self, ctx: commands.Context, error):
@@ -240,12 +271,13 @@ def setup_logger() -> logging.Logger:
     return logger
 
 if __name__ == "__main__":
+    bot_key = getenv("DISCORD_TOKEN", "").strip()
+    if not bot_key:
+        exit("DISCORD_TOKEN is not set. Copy .env.example to .env and set DISCORD_TOKEN in it "
+             "(with Docker, pass it with docker run --env-file .env).")
+
     prefix = "//"
-    bot = commands.Bot(command_prefix=prefix, help_command=None, intents=intents)
-
-    bot.logger = setup_logger()
-
-    bot.add_cog(Main(bot))
+    bot = DitBot(command_prefix=prefix, help_command=None, intents=intents)
 
     if not exists("logs"):
         mkdir("logs")
@@ -253,16 +285,11 @@ if __name__ == "__main__":
     if not exists("data"):
         mkdir("data")
 
+    bot.logger = setup_logger()
+
     if not exists("data/data.json"):
         with open("data/data.json", "a+") as file:
             json.dump({"last_update": 0, "guilds": {}}, file, indent=4)
 
-    if exists("data/config.json"):
-        with open("data/config.json", "r") as file:
-            bot_key = json.loads(file.read())['discord-key']
-        bot.run(bot_key)
-    else:
-        with open("data/config.json", "a+") as file:
-            json.dump({"discord-key": ""}, file, indent=4)
-        print("Paste your key in config.json file in data/")
+    bot.run(bot_key, log_handler=None)     # Logging is set up by setup_logger()
         
